@@ -1,0 +1,3 @@
+# Both have defined a variable called "$my_variable"
+import "tests/importing/tests-files/duplicated_variable_aux_1.ura"
+import "tests/importing/tests-files/duplicated_variable_aux_2.ura"

@@ -1,0 +1,5 @@
+model:
+    columns: [
+        [ "var1", "str" ],
+        [ "var2", "str" ],
+    ]

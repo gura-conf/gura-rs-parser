@@ -1,0 +1,3 @@
+# INVALID, objects are not allowed as a variable value
+$invalid: user:
+              name: 'Invalid user'

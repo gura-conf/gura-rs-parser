@@ -1,0 +1,7 @@
+$name: "Gura"
+
+str: "I'm a string. \"You can quote me\". Na\bme\tJos\u00E9\nLocation\tSF."
+str_2: "I'm a string. \"You can quote me\". Na\bme\tJos\U000000E9\nLocation\tSF."
+with_var: "$name is cool"
+escaped_var: "\$name is cool"
+with_env_var: "$name is $env_var_value cool"  # $env_var_value is defined in corresponding test.py

@@ -1,0 +1,35 @@
+$roses: "Roses"
+
+str: """
+Roses are red
+Violets are blue"""
+
+str_2: """Roses are red
+Violets are blue"""
+
+str_3: """Roses are red\nViolets are blue"""
+
+with_var: """
+$roses are red
+Violets are blue"""
+
+with_env_var: """$env_var_value are red\nViolets are blue""" # $env_var_value is defined in corresponding test.py
+
+
+str_with_backslash: """
+The quick brown \
+
+
+  fox jumps over \
+    the lazy dog."""
+
+str_with_backslash_2: """\
+       The quick brown \
+       fox jumps over \
+       the lazy dog.\
+       """
+
+str_4: """Here are two quotation marks: "". Simple enough."""
+str_5: """Here are three quotation marks: ""\"."""
+str_6: """Here are fifteen quotation marks: ""\"""\"""\"""\"""\"."""
+escaped_var: """\$name is cool"""

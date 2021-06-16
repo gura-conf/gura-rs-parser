@@ -1,0 +1,3 @@
+# Both have defined a key called "my_value"
+import "tests/importing/tests-files/duplicated_key_aux_1.ura"
+import "tests/importing/tests-files/duplicated_key_aux_2.ura"

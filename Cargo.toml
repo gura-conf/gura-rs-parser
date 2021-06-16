@@ -1,0 +1,8 @@
+[package]
+name = "gura-rs"
+version = "0.1.0"
+authors = ["JWare Solutions <jware.organization@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+itertools = "0.10.1"

@@ -1,0 +1,5 @@
+# INVALID as second level has block of 8 spaces as indentation
+services:
+    nginx:
+            host: "127.0.0.1"
+            port: 80

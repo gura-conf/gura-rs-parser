@@ -1,0 +1,7 @@
+# What you see is what you get.
+winpath: 'C:\Users\nodejs\templates'
+winpath2: '\\ServerX\admin$\system32\'
+quoted: 'John "Dog lover" Wick'
+regex: '<\i\c*\s*>'
+with_var: '$no_parsed variable!'
+escaped_var: '$name is cool'

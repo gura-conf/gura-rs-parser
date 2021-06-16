@@ -1,0 +1,17 @@
+$my_var: 5
+
+plain: $my_var
+in_array_middle: [1, $my_var, 3]
+in_array_last: [1, 2, $my_var]
+
+$name: "Aníbal"
+$surname: "Troilo"
+$year_of_birth: 1914
+
+# Assigning variable value to another variable is allowed
+$aux: $name
+
+in_object:
+    name: $aux
+    surname: $surname
+    year_of_birth: $year_of_birth

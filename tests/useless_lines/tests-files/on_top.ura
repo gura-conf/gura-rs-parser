@@ -1,0 +1,15 @@
+# Some test comments
+
+
+# Another comment
+
+
+
+a_string: "test string"
+int1: +99
+int2: 42
+int3: 0
+int4: -17
+int5: 1_000
+int6: 5_349_221
+int7: 53_49_221

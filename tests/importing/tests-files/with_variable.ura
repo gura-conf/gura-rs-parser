@@ -1,0 +1,7 @@
+$common_path: "tests/importing/tests-files"
+
+import "$common_path/one.ura"
+import "$common_path/two.ura"
+
+from_original_1: [1, 2, 5]
+from_original_2: false

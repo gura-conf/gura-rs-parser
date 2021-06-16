@@ -1,0 +1,5 @@
+
+from_file_two:
+    name: "Aníbal"
+    surname: "Troilo"
+    year_of_birth: 1914

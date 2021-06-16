@@ -1,0 +1,26 @@
+# COMMENT
+user1:
+    name: "Carlos"
+
+
+    # COMMENT
+    surname: "Gardel"
+    year_of_birth: 1890
+
+
+
+    testing_nested:
+        nested_1: 1
+        nested_2: 2
+
+
+        # COMMENT
+user2: # COMMENT
+    name: "Aníbal"
+
+    # COMMENT
+    surname: "Troilo"
+    year_of_birth: 1914
+
+
+

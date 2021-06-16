@@ -1,0 +1,4 @@
+import "three.ura"
+
+from_file_one: 1
+

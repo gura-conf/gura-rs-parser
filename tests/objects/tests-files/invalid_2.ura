@@ -1,0 +1,7 @@
+user1:
+    name: "Carlos"
+    surname: "Gardel"
+
+user2:
+    name: # INVALID
+    surname: "Troilo"

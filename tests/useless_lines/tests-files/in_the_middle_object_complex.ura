@@ -1,0 +1,24 @@
+testing:
+    test:
+        # COMMENT
+        name: "JWARE"
+
+#        COMMENT
+
+
+        surname: "Solutions"
+        skills:
+            good_testing: false
+#           COMMENT WITHOUT BLANKS
+            good_programming: false
+    #       COMMENT WITH BLANKS
+            good_english: false
+
+    test_2: 2
+    test_3:
+#        COMMENT
+        key_1: true
+        key_2: false
+
+        key_3: 55.99
+

@@ -1,0 +1,5 @@
+import "tests/importing/tests-files/one.ura"
+import "tests/importing/tests-files/two.ura"
+
+from_original_1: [1, 2, 5]
+from_original_2: false
