@@ -1,14 +1,12 @@
 use itertools::Itertools;
-use std::{collections::HashMap, error::Error, fmt::{self}, ops::AddAssign, usize};
+use std::{collections::{HashMap, HashSet}, error::Error, fmt::{self}, ops::AddAssign, usize};
+
+use crate::errors::InvalidIndentationError;
 
 // TODO: refactor to anothe file the errors and types
 
 type Rules = Vec<Box<dyn Fn() -> Result<GuraType, ParseError>>>;
 
-#[derive(Debug)]
-enum GuraType {
-
-}
 
 
 // ValueError
@@ -24,12 +22,35 @@ impl fmt::Display for ValueError {
 }
 
 
+// TODO: implement
+#[derive(Debug)]
+enum PrimitiveType {
+
+}
+
+/* Data types to be returned by match expression methods */
+#[derive(Debug)]
+enum GuraType {
+  USELESS_LINE,
+  PAIR(String, Box<GuraType>),
+  COMMENT,
+  IMPORT,
+  VARIABLE,
+  EXPRESSION(Box<GuraType>),
+  PRIMITIVE(PrimitiveType),
+  LIST(Vec<Box<GuraType>>)
+}
+
+
 // ParseError
 #[derive(Debug, Clone)]
 struct ParseError {
 	message: String,
 	pos: usize,
 	line: usize,
+	variables: HashMap<String, GuraType>,
+	indentationLevels: Vec<usize>,
+	importedFiles: HashSet<String>
 }
 
 impl ParseError {
@@ -38,6 +59,9 @@ impl ParseError {
 			pos,
 			line,
 			message,
+			variables: HashMap::new(),
+			indentationLevels: Vec::new(),
+			importedFiles: HashSet::new()
 		}
 	}
 }
@@ -280,6 +304,133 @@ impl Parser {
 			result => result.ok()
 		}
 	}
+
+  	/**
+	* Parses a text in Gura format.
+	*
+	* @param text - Text to be parsed.
+	* @throws ParseError if the syntax of text is invalid.
+	* @returns Object with all the parsed values.
+	*/
+	fn parse (&self, text: &String) -> HashMap<String, GuraType> {
+		self.restartParams(text);
+		let result = self.start();
+		self.assertEnd();
+		if !result.is_none() { result } else { HashMap::new() }
+	}
+
+	/**
+	 * Sets the params to start parsing from a specific text.
+	 *
+	 * @param text - Text to set as the internal text to be parsed.
+	 */
+	fn restartParams (&mut self, text: &String) {
+		self.text = text.to_string();
+		self.pos = 0;
+		self.line = 0;
+		self.len = text.len() - 1;
+	}
+
+	/**
+	* Matches with a new line.
+	*/
+	fn newLine (&mut self) {
+		let res = self.char("\f\v\r\n");
+		if res.is_ok() {
+			self.line += 1
+		}
+	}
+
+	/**
+	* Matches with a comment.
+	*
+	* @returns MatchResult indicating the presence of a comment.
+	*/
+  	fn comment (&mut self) -> GuraType {
+		self.keyword(vec![String::from("#")]);
+		while self.pos < self.len {
+			let char = self.text.chars().nth(self.pos + 1).unwrap();
+			self.pos += 1;
+			if String::from("\f\v\r\n").contains(char) {
+				self.line += 1;
+				break;
+			}
+		}
+
+		GuraType::COMMENT
+  	}
+
+	/**
+	* Matches with white spaces taking into consideration indentation levels.
+	*
+	* @returns Indentation level.
+	*/
+  	fn wsWithIndentation (&self) -> Result<usize, InvalidIndentationError> {
+		let mut currentIndentationLevel = 0;
+
+		while self.pos < self.len {
+			let blank = self.maybe_keyword(vec![
+				String::from(" "),
+				String::from("\t")
+			]);
+
+			if blank.is_none() {
+				// If it is not a blank or new line, returns from the method
+				break
+			}
+
+			// Tabs are not allowed
+			if blank.unwrap() == "\t"{
+				return Err(InvalidIndentationError::new(
+					String::from("Tabs are not allowed to define indentation blocks")
+				));
+			}
+
+			currentIndentationLevel += 1
+		}
+
+		Ok(currentIndentationLevel)
+  	}
+
+	/**
+	* Matches white spaces (blanks and tabs).
+	*/
+	fn ws (&self) {
+		while self.maybe_keyword(vec![String::from(" "), String::from("\t")]).is_some() {
+			continue
+		}
+	}
+
+	/**
+	* Consumes all the whitespaces and new lines.
+	*/
+	fn eatWsAndNewLines (&self) {
+		while self.maybe_char(" \f\v\r\n\t").is_some() {
+			continue
+		}
+	}
+
+
+	/**
+	* Gets final text taking in consideration imports in original text.
+	*
+	* @param originalText - Text to be parsed.
+	* @param parentDirPath - Parent directory to keep relative paths reference.
+	* @param importedFiles - Set with imported files to check if any was imported more than once.
+	* @returns Final text with imported files' text on it.
+	*/
+  	fn getTextWithImports (
+		&self,
+		originalText: &String,
+		parentDirPath: String,
+		importedFiles: HashSet<String>
+	) -> (String, HashSet<String>) {
+		self.restartParams(originalText);
+		let importedFiles = self.computeImports(parentDirPath, importedFiles);
+		(self.text, importedFiles)
+	}
+
+
 }
 
 
