@@ -335,7 +335,8 @@ impl Parser {
 	* Matches with a new line.
 	*/
 	fn newLine (&mut self) {
-		let res = self.char("\f\v\r\n");
+		let newLineChars = Some(String::from("\x0c\x0b\r\n"));
+		let res = self.char(newLineChars);
 		if res.is_ok() {
 			self.line += 1
 		}
@@ -351,7 +352,7 @@ impl Parser {
 		while self.pos < self.len {
 			let char = self.text.chars().nth(self.pos + 1).unwrap();
 			self.pos += 1;
-			if String::from("\f\v\r\n").contains(char) {
+			if String::from("\x0c\x0b\r\n").contains(char) {
 				self.line += 1;
 				break;
 			}
@@ -405,7 +406,8 @@ impl Parser {
 	* Consumes all the whitespaces and new lines.
 	*/
 	fn eatWsAndNewLines (&self) {
-		while self.maybe_char(" \f\v\r\n\t").is_some() {
+		let wsAndNewLinesChars = Some(String::from(" \x0c\x0b\r\n\t"));
+		while self.maybe_char(wsAndNewLinesChars).is_some() {
 			continue
 		}
 	}
