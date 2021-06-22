@@ -34,7 +34,7 @@ enum GuraType {
   USELESS_LINE,
   PAIR(String, Box<GuraType>),
   COMMENT,
-  IMPORT,
+  IMPORT(String),
   VARIABLE,
   EXPRESSION(Box<GuraType>),
   PRIMITIVE(PrimitiveType),
@@ -48,9 +48,6 @@ struct ParseError {
 	message: String,
 	pos: usize,
 	line: usize,
-	variables: HashMap<String, GuraType>,
-	indentationLevels: Vec<usize>,
-	importedFiles: HashSet<String>
 }
 
 impl ParseError {
@@ -59,9 +56,6 @@ impl ParseError {
 			pos,
 			line,
 			message,
-			variables: HashMap::new(),
-			indentationLevels: Vec::new(),
-			importedFiles: HashSet::new()
 		}
 	}
 }
@@ -81,7 +75,10 @@ struct Parser {
     pos: usize,
     line: usize,
     len: usize,
-	cache: HashMap<String, String>
+	cache: HashMap<String, String>,
+	variables: HashMap<String, GuraType>,
+	indentationLevels: Vec<usize>,
+	importedFiles: HashSet<String>
 }
 
 impl Parser {
@@ -92,6 +89,9 @@ impl Parser {
 			line: 0,
 			len: 0,
 			text: String::new(),
+			variables: HashMap::new(),
+			indentationLevels: Vec::new(),
+			importedFiles: HashSet::new()
 		}
 	}
 
@@ -432,7 +432,24 @@ impl Parser {
 		(self.text, importedFiles)
 	}
 
+	/**
+	* Matches import sentence.
+	*
+	* @returns MatchResult with file name of imported file.
+	*/
+  	fn guraImport (&self) -> Result<GuraType, ParseError> {
+		self.keyword(vec![String::from("import")]);
+		self.char(Some(String::from(" ")));
+		let string_match = self.matches(vec![self.quotedStringWithVar])?;
 
+		if let GuraType::IMPORT(fileToImport) = string_match {
+			self.matches(vec![self.ws]);
+			self.maybe_match(vec![self.newLine]);
+			Ok(GuraType::IMPORT(fileToImport))
+		} else {
+			Err(ParseError::new(self.pos, self.line, String::from("Gura import invalid")))
+		}
+  }
 }
 
 
