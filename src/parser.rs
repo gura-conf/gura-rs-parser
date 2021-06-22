@@ -1,7 +1,9 @@
 use itertools::Itertools;
-use std::{collections::{HashMap, HashSet}, error::Error, fmt::{self}, ops::AddAssign, usize, vec};
+use std::{collections::{HashMap, HashSet}, env, error::Error, fmt::{self}, ops::AddAssign, usize, vec};
 
-use crate::errors::InvalidIndentationError;
+use crate::errors::{InvalidIndentationError, VariableNotDefinedError};
+
+const KEY_ACCEPTABLE_CHARS: Option<String> = Some(String::from("0-9A-Za-z_"));
 
 // Special characters to be escaped
 const ESCAPE_SEQUENCES: HashMap<char, char> = [
@@ -38,7 +40,8 @@ impl fmt::Display for ValueError {
 #[derive(Debug)]
 enum PrimitiveTypeEnum {
 	Bool(bool),
-	String(String)
+	String(String),
+	Number(f64)
 }
 
 type PrimitiveType = Option<PrimitiveTypeEnum>;
@@ -310,7 +313,7 @@ fn basicString (text: &mut Parser) -> RuleResult {
         // Computes variables values in string
         if current_char == '$'{
           let varName = getVarName(text);
-          chars.push(getVariableValue(text, varName));
+          chars.push(getVariableValue(text, varName)?);
         } else {
           chars.push(current_char);
         }
@@ -318,7 +321,23 @@ fn basicString (text: &mut Parser) -> RuleResult {
     }
 
 	let final_string = chars.iter().cloned().collect::<String>();
-    Ok(GuraType::PRIMITIVE(PrimitiveTypeEnum::String(final_string)))
+    Ok(GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::String(final_string))))
+}
+
+/**
+   * Gets a variable name char by char.
+   *
+   * @returns Variable name.
+   */
+fn getVarName (text: &mut Parser) -> String {
+    let mut varName = String::new();
+    let varNameChar = maybe_char(text, KEY_ACCEPTABLE_CHARS);
+    while varNameChar.is_some() {
+      varName.push_str(&varNameChar.unwrap());
+      varNameChar = maybe_char(text, KEY_ACCEPTABLE_CHARS)
+    }
+
+    varName
   }
 
 /**
@@ -659,7 +678,7 @@ fn new_Line (text: &mut Parser) -> RuleResult {
 *
 * @returns Indentation level.
 */
-  fn wsWithIndentation (text: &mut Parser) -> Result<usize, InvalidIndentationError> {
+fn wsWithIndentation (text: &mut Parser) -> Result<usize, InvalidIndentationError> {
 	let mut currentIndentationLevel = 0;
 
 	while text.pos < text.len {
@@ -684,7 +703,7 @@ fn new_Line (text: &mut Parser) -> RuleResult {
 	}
 
 	Ok(currentIndentationLevel)
-  }
+}
 
 /**
 * Matches white spaces (blanks and tabs).
@@ -697,6 +716,59 @@ fn ws (text: &mut Parser) -> RuleResult {
 	Ok(GuraType::WsOrNewLine)
 }
 
+
+/**
+* Matches with a quoted string(with a single quotation mark) taking into consideration a variable inside it.
+* There is no special character escaping here.
+*
+* @returns Matched string.
+*/
+fn quotedStringWithVar (text: &mut Parser) -> RuleResult {
+	// TODO: consider using char(text, vec![String::from("\"")])
+    let quote = keyword(text, vec![String::from("\"")])?.chars().nth(0).unwrap();
+    let mut chars: Vec<char> = Vec::new();
+
+    loop {
+      let current_char = char(text, None)?;
+
+      if current_char == quote {
+        break;
+      }
+
+      // Computes variables values in string
+      if current_char == '$'{
+        let varName = getVarName(text);
+		match getVariableValue(text, varName) {
+			Ok(GuraType::PRIMITIVE(Some(some_var))) => {
+				let var_chars: Vec<char> = match some_var {
+					PrimitiveTypeEnum::String(var_value_str) => {
+						var_value_str.chars().collect()
+					},
+					PrimitiveTypeEnum::Number(var_value_number) => {
+						var_value_number.to_string().chars().collect()
+					}
+        			_ => {
+						return Err(ParseError::new(text.pos, text.line, String::from(
+							format!("Variable {} has an invalid type", varName)
+						)));
+					}
+				};
+				chars.append(&mut var_chars);
+			},
+			// TODO: change this by VariableNotDefinedError
+			_ => {
+				return Err(ParseError::new(text.pos, text.line, String::from("VariableNotDefinedError")));
+			}
+		}
+      } else {
+        chars.push(current_char);
+      }
+    }
+
+	let final_string = chars.iter().cloned().collect::<String>();
+    Ok(GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::String(final_string))))
+}
+
 /**
 * Consumes all the whitespaces and new lines.
 */
@@ -705,6 +777,30 @@ fn eatWsAndNewLines (text: &mut Parser) {
 	while maybe_char(text, wsAndNewLinesChars).is_some() {
 		continue
 	}
+}
+
+  /**
+   * Gets a variable value for a specific key from defined variables in file or as environment variable.
+   *
+   * @param key - Key to retrieve.
+   * @throws VariableNotDefinedError if the variable is not defined in file nor environment.
+   * @returns Variable value.
+   */
+fn getVariableValue (text: &mut Parser, key: String) -> Result<GuraType, VariableNotDefinedError> {
+    match text.variables.get(&key) {
+		Some(value) => Ok(*value),
+		None => {
+			match env::var(key) {
+				Ok(value) => {
+					let gura_value = GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::String(value.to_owned())));
+					Ok(gura_value)
+				},
+				Err(e) => Err(VariableNotDefinedError::new(
+					format!("Variable '{}' is not defined in Gura nor as environment variable", key)
+				))
+			}
+		}
+    }
 }
 
 

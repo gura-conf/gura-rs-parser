@@ -8,7 +8,7 @@ const INF_AND_NAN: &str = "in"; // The rest of the chars are defined in hex_oct_
 const ACCEPTABLE_NUMBER_CHARS: &str = BASIC_NUMBERS_CHARS + HEX_OCT_BIN + INF_AND_NAN + "Ee+._-";
 
 // Acceptable chars for keys
-const KEY_ACCEPTABLE_CHARS: &str = "0-9A-Za-z_";
+
 
 
 
@@ -29,72 +29,13 @@ impl GuraParser {
 
   
 
-  /**
-   * Matches with a quoted string(with a single quotation mark) taking into consideration a variable inside it.
-   * There is no special character escaping here.
-   *
-   * @returns Matched string.
-   */
-  quotedStringWithVar (): string {
-    const quote = this.keyword(['"'])
-    const chars: string[] = []
 
-    while (true) {
-      const char = this.char()
 
-      if (char === quote) {
-        break
-      }
-
-      // Computes variables values in string
-      if (char === '$') {
-        const varName = this.getVarName()
-        chars.push(this.getVariableValue(varName))
-      } else {
-        chars.push(char)
-      }
-    }
-
-    return chars.join('')
-  }
-
-  /**
-   * Gets a variable name char by char.
-   *
-   * @returns Variable name.
-   */
-  private getVarName (): string {
-    let varName = ''
-    let varNameChar = this.maybeChar(KEY_ACCEPTABLE_CHARS)
-    while (varNameChar !== null) {
-      varName += varNameChar
-      varNameChar = this.maybeChar(KEY_ACCEPTABLE_CHARS)
-    }
-
-    return varName
-  }
+  
 
 
 
-  /**
-   * Gets a variable value for a specific key from defined variables in file or as environment variable.
-   *
-   * @param key - Key to retrieve.
-   * @throws VariableNotDefinedError if the variable is not defined in file nor environment.
-   * @returns Variable value.
-   */
-  private getVariableValue (key: string): any | null {
-    if (this.variables.has(key)) {
-      return this.variables.get(key)
-    }
 
-    const envVariable = process.env[key]
-    if (envVariable !== undefined) {
-      return envVariable
-    }
-
-    throw new VariableNotDefinedError(`Variable '${key}' is not defined in Gura nor as environment variable`)
-  }
 
   /**
    * Matches with an already defined variable and gets its value.

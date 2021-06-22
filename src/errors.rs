@@ -1,10 +1,10 @@
 #[derive(Debug, Clone)]
-struct VariableNotDefinedError {
+pub struct VariableNotDefinedError {
 	var_name: String,
 }
 
 impl VariableNotDefinedError {
-	fn new(var_name: String) -> Self {
+	pub fn new(var_name: String) -> Self {
 		VariableNotDefinedError {
 			var_name,
 		}
