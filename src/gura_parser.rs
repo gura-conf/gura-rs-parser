@@ -37,16 +37,7 @@ impl GuraParser {
 
 
 
-  /**
-   * Matches with an already defined variable and gets its value.
-   *
-   * @returns Variable value.
-   */
-  variableValue (): MatchResult {
-    this.keyword(['$'])
-    const key = this.match([this.unquotedString])
-    return { resultType: MatchResultType.PRIMITIVE, value: this.getVariableValue(key) }
-  }
+
 
   /**
    * Matches with a variable definition.
