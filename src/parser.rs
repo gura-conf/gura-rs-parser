@@ -1,7 +1,19 @@
 use itertools::Itertools;
-use std::{collections::{HashMap, HashSet}, error::Error, fmt::{self}, ops::AddAssign, usize};
+use std::{collections::{HashMap, HashSet}, error::Error, fmt::{self}, ops::AddAssign, usize, vec};
 
 use crate::errors::InvalidIndentationError;
+
+// Special characters to be escaped
+const ESCAPE_SEQUENCES: HashMap<char, char> = [
+  ('b', '\x08'),
+  ('f', '\x0c'),
+  ('n', '\n'),
+  ('r', '\r'),
+  ('t', '\t'),
+  ('"', '"'),
+  ('\\', '\\'),
+  ('$', '$')].iter().cloned().collect();
+
 
 // TODO: refactor to another file the errors and types
 type RuleResult = Result<GuraType, ParseError>;
@@ -25,13 +37,15 @@ impl fmt::Display for ValueError {
 // TODO: implement
 #[derive(Debug)]
 enum PrimitiveTypeEnum {
-
+	Bool(bool),
+	String(String)
 }
 
 type PrimitiveType = Option<PrimitiveTypeEnum>;
 
 /* Data types to be returned by match expression methods */
 // TODO: change to CamelCase
+// TODO: differentiate between all the types and only the valid types for final result map
 #[derive(Debug)]
 enum GuraType {
   USELESS_LINE,
@@ -39,7 +53,7 @@ enum GuraType {
   COMMENT,
   IMPORT(String),
   VARIABLE,
-  EXPRESSION(Box<GuraType>),
+  EXPRESSION((Box<GuraType>, usize)),
   PRIMITIVE(PrimitiveType),
   LIST(Vec<Box<GuraType>>),
   WsOrNewLine
@@ -146,6 +160,7 @@ fn anyType (text: &mut Parser) -> RuleResult  {
 	}
 }
 
+
 /**
    * Matches with a primitive value: null, bool, strings(all of the four kind of string), number or variables values.
    *
@@ -166,6 +181,43 @@ fn primitiveType (text: &mut Parser) -> RuleResult {
 }
 
 /**
+* Matches with a useless line.A line is useless when it contains only whitespaces and / or a comment finishing in a new line.
+*
+* @throws ParseError if the line contains valid data.
+* @returns MatchResult indicating the presence of a useless line.
+*/
+fn uselessLine (text: &mut Parser) -> RuleResult {
+    matches(text, vec![Box::new(ws)])?;
+    let comment = maybe_match(text, vec![Box::new(comment)]);
+    let initialLine = text.line;
+    maybe_match(text, vec![Box::new(new_Line)]);
+    let is_new_line = (text.line - initialLine) == 1;
+
+    if comment.is_none() && !is_new_line {
+      return Err(ParseError::new(
+        text.pos + 1,
+        text.line,
+        String::from("It is a valid line")
+      ));
+    }
+
+    Ok(GuraType::USELESS_LINE)
+}
+
+
+/**
+* Matches with a list or another complex expression.
+*
+* @returns List or Dict, depending the correct matching.
+*/
+fn complexType (text: &mut Parser) -> RuleResult {
+    matches(text, vec![
+		Box::new(list), 
+		Box::new(expression)
+	])
+}
+
+/**
 * Consumes null keyword and return null.
 *
 * @returns Null.
@@ -181,9 +233,93 @@ fn null (text: &mut Parser) -> RuleResult {
 * @returns Matched boolean value.
 */
 fn boolean (text: &mut Parser) -> RuleResult {
-    let value = keyword(text, vec![String::from("true"), String::from("false")]) == "true";
-    Ok(GuraType::PRIMITIVE(value))
+    let value = keyword(text, vec![String::from("true"), String::from("false")])? == "true";
+    Ok(
+		GuraType::PRIMITIVE(
+			Some(PrimitiveTypeEnum::Bool(value))
+		)
+	)
 }
+
+/**
+   * Matches with a simple / multiline basic string.
+   *
+   * @returns Matched string.
+   */
+fn basicString (text: &mut Parser) -> RuleResult {
+    let quote = keyword(text, vec![String::from("\"\"\""), String::from("\"")])?;
+
+    let isMultiline = quote == "\"\"\"";
+
+    // NOTE: A newline immediately following the opening delimiter will be trimmed.All other whitespace and
+    // newline characters remain intact.
+    if isMultiline {
+      maybe_char(text, Some(String::from("\n")));
+    }
+
+    let chars: Vec<char> = Vec::new();
+
+    loop {
+      let closingQuote = maybe_keyword(text, vec![quote]);
+      if closingQuote.is_some() {
+        break;
+      }
+
+      let current_char = char(text, None)?;
+      if current_char == '\\' {
+        let escape = char(text, None)?;
+
+        // Checks backslash followed by a newline to trim all whitespaces
+        if isMultiline && escape == '\n' {
+          eatWsAndNewLines(text)
+        } else {
+          // Supports Unicode of 16 and 32 bits representation
+          if escape == 'u' || escape == 'U' {
+            let numCharsCodePoint = if escape == 'u' { 4 } else { 8 };
+            let mut codePoint: Vec<char> = Vec::with_capacity(numCharsCodePoint);
+            for _ in 0..numCharsCodePoint {
+				let code_point_char = char(text, Some(String::from("0-9a-fA-F")))?;
+              	codePoint.push(code_point_char);
+            }
+			let codePointStr = codePoint.iter().cloned().collect::<String>();
+            let hexValue = u32::from_str_radix(codePointStr.as_str(), 16);
+			// TODO: fix to use ? instead of this if
+			match hexValue {
+				Err(_) => {
+					return Err(ParseError::new(
+						text.pos,
+						text.line,
+						String::from("Bad hex value")
+					));
+				},
+				Ok(hexValue) => {
+					let charValue = char::from_u32(hexValue).unwrap(); // Converts from UNICODE to string
+					chars.push(charValue)
+				}
+			};
+          } else {
+            // Gets escaped char
+			let escaped_char = match ESCAPE_SEQUENCES.get(&escape) {
+				Some(good_escape_char) => good_escape_char.clone(),
+				None => current_char
+			};
+            chars.push(escaped_char);
+          }
+        }
+      } else {
+        // Computes variables values in string
+        if current_char == '$'{
+          let varName = getVarName(text);
+          chars.push(getVariableValue(text, varName));
+        } else {
+          chars.push(current_char);
+        }
+      }
+    }
+
+	let final_string = chars.iter().cloned().collect::<String>();
+    Ok(GuraType::PRIMITIVE(PrimitiveTypeEnum::String(final_string)))
+  }
 
 /**
 * Computes all the import sentences in Gura file taking into consideration relative paths to imported files.
@@ -307,7 +443,7 @@ fn split_char_ranges(text: &mut Parser, chars: &String) -> Result<String, ValueE
 /// :param chars: Chars to match. If it is None, it will return the next char in text
 /// :raise: ParseError if any of the specified char (i.e. if chars != None) matched
 /// :return: Matched char
-fn char(text: &mut Parser, chars: Option<String>) -> Result<String, ParseError> {
+fn char(text: &mut Parser, chars: Option<String>) -> Result<char, ParseError> {
 	if text.pos >= text.len {
 		return Err(ParseError::new(
 			text.pos + 1,
@@ -319,7 +455,7 @@ fn char(text: &mut Parser, chars: Option<String>) -> Result<String, ParseError> 
 		));
 	}
 
-	let next_char = String::from(text.text.chars().nth(text.pos + 1).unwrap());
+	let next_char = text.text.chars().nth(text.pos + 1).unwrap();
 	match chars {
 		None => {
 			text.pos += 1;
@@ -328,14 +464,14 @@ fn char(text: &mut Parser, chars: Option<String>) -> Result<String, ParseError> 
 		Some(chars_value) => {
 			for char_range in split_char_ranges(text, &chars_value) {
 				if char_range.len() == 1 {
-					if next_char == char_range {
+					if next_char == char_range.chars().nth(0).unwrap() {
 						text.pos += 1;
 						return Ok(next_char);
 					}
 				} else {
 					let mut char_range_chr = char_range.chars();
-					let bottom = String::from(char_range_chr.nth(0).unwrap());
-					let top = String::from(char_range_chr.nth(2).unwrap());
+					let bottom = char_range_chr.nth(0).unwrap();
+					let top = char_range_chr.nth(2).unwrap();
 					if bottom <= next_char && next_char <= top {
 						text.pos += 1;
 						return Ok(next_char);
@@ -476,11 +612,14 @@ fn maybe_keyword(text: &mut Parser, keywords: Vec<String>) -> Option<String> {
 * @throws ParseError if the syntax of text is invalid.
 * @returns Object with all the parsed values.
 */
-fn parse (text_parser: &Parser, text: &String) -> HashMap<String, GuraType> {
+fn parse (text_parser: &mut Parser, text: &String) -> Option<GuraType> {
 	text_parser.restart_params(text);
 	let result = start(text_parser);
 	assert_end(text_parser);
-	if !result.is_none() { result } else { HashMap::new() }
+	match result {
+		Ok(content) => Some(content),
+		_ => None
+	}
 }
 
 /**
@@ -501,7 +640,7 @@ fn new_Line (text: &mut Parser) -> RuleResult {
 *
 * @returns MatchResult indicating the presence of a comment.
 */
-  fn comment (text: &mut Parser) -> GuraType {
+  fn comment (text: &mut Parser) -> RuleResult {
 	keyword(text, vec![String::from("#")]);
 	while text.pos < text.len {
 		let char = text.text.chars().nth(text.pos + 1).unwrap();
@@ -512,7 +651,7 @@ fn new_Line (text: &mut Parser) -> RuleResult {
 		}
 	}
 
-	GuraType::COMMENT
+	Ok(GuraType::COMMENT)
   }
 
 /**
@@ -593,10 +732,10 @@ fn eatWsAndNewLines (text: &mut Parser) {
 *
 * @returns MatchResult with file name of imported file.
 */
-  fn guraImport (text: &mut Parser) -> RuleResult {
+fn guraImport (text: &mut Parser) -> RuleResult {
 	keyword(text, vec![String::from("import")]);
 	char(text, Some(String::from(" ")));
-	let string_match = matches(vec![
+	let string_match = matches(text, vec![
 		Box::new(quotedStringWithVar)
 	])?;
 
