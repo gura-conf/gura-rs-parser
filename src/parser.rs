@@ -628,13 +628,17 @@ fn matches(text: &mut Parser, rules: Rules) -> RuleResult {
     // Unwrap is safe as if this line is reached no rule matched
     // Err(last_exception.unwrap())
     if last_error_rules.len() == 1 {
-    	Err(Box::new(last_exception.unwrap()))
+    	Err(last_exception.unwrap())
     } else {
     	let last_error_pos = (text.text.len() - 1).min(last_error_pos);
     	Err(Box::new(ParseError::new(
     		last_error_pos,
     		text.line,
-    		format!("Expected {} but got {}", last_error_rules.iter().join(","), text.text[last_error_pos])
+    		format!(
+                "Expected {} but got {}",
+                last_error_rules.iter().join(","),
+                text.text.chars().nth(last_error_pos).unwrap()
+            )
     	)))
     }
 }
