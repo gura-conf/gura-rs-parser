@@ -1,15 +1,27 @@
+use std::{error::Error, fmt};
+
+// TODO: Refactor using macros
+
 #[derive(Debug, Clone)]
 pub struct VariableNotDefinedError {
-	var_name: String,
+	msg: String,
 }
 
 impl VariableNotDefinedError {
-	pub fn new(var_name: String) -> Self {
+	pub fn new(msg: String) -> Self {
 		VariableNotDefinedError {
-			var_name,
+			msg,
 		}
 	}
 }
+
+impl fmt::Display for VariableNotDefinedError {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", self.msg)
+  }
+}
+
+impl Error for VariableNotDefinedError {}
 
 #[derive(Debug, Clone)]
 pub struct InvalidIndentationError {
@@ -24,6 +36,14 @@ impl InvalidIndentationError {
 	}
 }
 
+impl fmt::Display for InvalidIndentationError {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", self.msg)
+  }
+}
+
+impl Error for InvalidIndentationError {}
+
 #[derive(Debug, Clone)]
 pub struct DuplicatedVariableError {
 	msg: String,
@@ -37,6 +57,14 @@ impl DuplicatedVariableError {
 	}
 }
 
+impl fmt::Display for DuplicatedVariableError {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", self.msg)
+  }
+}
+
+impl Error for DuplicatedVariableError {}
+
 #[derive(Debug, Clone)]
 pub struct DuplicatedKeyError {
 	msg: String,
@@ -49,3 +77,11 @@ impl DuplicatedKeyError {
 		}
 	}
 }
+
+impl fmt::Display for DuplicatedKeyError {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", self.msg)
+  }
+}
+
+impl Error for DuplicatedKeyError {}
