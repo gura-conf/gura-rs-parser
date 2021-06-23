@@ -126,35 +126,6 @@ impl GuraParser {
       : null
   }
 
-  /**
-   * Removes, if exists, the last indentation level.
-   */
-  private removeLastIndentationLevel () {
-    if (this.indentationLevels.length > 0) {
-      this.indentationLevels.pop()
-    }
-  }
-
-  /**
-   * Matches with a key.A key is an unquoted string followed by a colon (:).
-   *
-   * @throws ParseError if key is not a valid string.
-   * @returns Matched key.
-   */
-  key (): string {
-    const key = this.match([this.unquotedString])
-
-    if (typeof key !== 'string') {
-      throw new ParseError(
-        this.pos + 1,
-        this.line,
-        `Expected string but got "${this.text.substring(this.pos + 1)}"`
-      )
-    }
-
-    this.keyword([':'])
-    return key
-  }
 
   /**
    * Matches with a key - value pair taking into consideration the indentation levels.
@@ -221,36 +192,10 @@ impl GuraParser {
     return { resultType: MatchResultType.PAIR, value: [key, result, currentIndentationLevel] }
   }
 
-  /**
-   * Gets the last indentation level or null in case it does not exist.
-   *
-   * @returns Last indentation level or null if it does not exist.
-   */
-  private getLastIndentationLevel (): number | null {
-    return this.indentationLevels.length === 0 ? null : this.indentationLevels[this.indentationLevels.length - 1]
-  }
 
   
 
-  /**
-   * Parses an unquoted string.Useful for keys.
-   *
-   * @returns Parsed unquoted string.
-   */
-  unquotedString (): string {
-    const chars = [this.char(KEY_ACCEPTABLE_CHARS)]
 
-    while (true) {
-      const char = this.maybeChar(KEY_ACCEPTABLE_CHARS)
-      if (char === null) {
-        break
-      }
-
-      chars.push(char)
-    }
-
-    return chars.join('').trimRight()
-  }
 
   /**
    * Parses a string checking if it is a number and get its correct value.

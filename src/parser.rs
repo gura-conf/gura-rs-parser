@@ -937,3 +937,77 @@ fn variable(text: &mut Parser) -> RuleResult {
         Err(ParseError::new(0, 0, String::from("Key not found")))
     }
 }
+
+/**
+* Removes, if exists, the last indentation level.
+*/
+fn removeLastIndentationLevel(text: &mut Parser) {
+    if text.indentationLevels.len() > 0 {
+        text.indentationLevels.pop();
+    }
+}
+
+/**
+* Matches with a key.A key is an unquoted string followed by a colon (:).
+*
+* @throws ParseError if key is not a valid string.
+* @returns Matched key.
+*/
+fn key(text: &mut Parser) -> RuleResult {
+    let matched_key = matches(text, vec![Box::new(unquotedString)]);
+
+    if let Ok(GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::String(value)))) = matched_key {
+        // TODO: try char
+        keyword(text, vec![String::from(":")])?;
+        matched_key
+    } else {
+        Err(ParseError::new(
+            text.pos + 1,
+            text.line,
+            format!(
+                "Expected string but got \"{}\"",
+                text.text.chars().nth(text.pos + 1).unwrap()
+            ),
+        ))
+    }
+}
+
+/**
+* Gets the last indentation level or null in case it does not exist.
+*
+* @returns Last indentation level or null if it does not exist.
+*/
+fn getLastIndentationLevel(text: &mut Parser) -> Option<usize> {
+    if text.indentationLevels.len() == 0 {
+        None
+    } else {
+        Some(text.indentationLevels[text.indentationLevels.len() - 1])
+    }
+}
+
+/**
+ * Parses an unquoted string.Useful for keys.
+ *
+ * @returns Parsed unquoted string.
+ */
+fn unquotedString(text: &mut Parser) -> RuleResult {
+    let chars = vec![char(text, KEY_ACCEPTABLE_CHARS)?];
+
+    loop {
+        let matched_char = maybe_char(text, KEY_ACCEPTABLE_CHARS);
+        match matched_char {
+            Some(a_char) => chars.push(a_char),
+            None => break,
+        };
+    }
+
+    let trimmed_str = chars
+        .iter()
+        .cloned()
+        .collect::<String>()
+        .trim_end()
+        .to_string();
+    Ok(GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::String(
+        trimmed_str,
+    ))))
+}
