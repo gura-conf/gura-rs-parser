@@ -39,26 +39,7 @@ impl GuraParser {
 
 
 
-  /**
-   * Matches with a variable definition.
-   *
-   * @throws DuplicatedVariableError if the current variable has been already defined.
-   * @returns Match result indicating that a variable has been added.
-   */
-  variable (): MatchResult {
-    this.keyword(['$'])
-    const key = this.match([this.key])
-    this.maybeMatch([this.ws])
-    const matchResult: MatchResult = this.match([this.basicString, this.literalString, this.number, this.variableValue])
-
-    if (this.variables.has(key)) {
-      throw new DuplicatedVariableError(`Variable '${key}' has been already declared`)
-    }
-
-    // Store as variable
-    this.variables.set(key, matchResult.value)
-    return { resultType: MatchResultType.VARIABLE }
-  }
+  
 
   /**
    * Matches with a list.

@@ -8,7 +8,7 @@ use std::{
     usize, vec,
 };
 
-use crate::errors::{InvalidIndentationError, VariableNotDefinedError};
+use crate::errors::{DuplicatedVariableError, InvalidIndentationError, VariableNotDefinedError};
 
 const KEY_ACCEPTABLE_CHARS: Option<String> = Some(String::from("0-9A-Za-z_"));
 
@@ -52,7 +52,7 @@ enum PrimitiveTypeEnum {
 }
 
 #[derive(Debug)]
-enum VariableValue {
+enum VariableValueType {
     String(String),
     Number(f64),
 }
@@ -68,7 +68,8 @@ enum GuraType {
     PAIR(String, Box<GuraType>),
     COMMENT,
     IMPORT(String),
-    VARIABLE(VariableValue),
+    VARIABLE,
+    VariableValue(VariableValueType),
     EXPRESSION((Box<GuraType>, usize)),
     PRIMITIVE(PrimitiveType),
     LIST(Vec<Box<GuraType>>),
@@ -108,7 +109,7 @@ struct Parser {
     line: usize,
     len: usize,
     cache: HashMap<String, String>,
-    variables: HashMap<String, GuraType>,
+    variables: HashMap<String, VariableValueType>,
     indentationLevels: Vec<usize>,
     importedFiles: HashSet<String>,
 }
@@ -537,6 +538,7 @@ fn char(text: &mut Parser, chars: Option<String>) -> Result<char, ParseError> {
 /// :param keywords: Keywords to match
 /// :raise: ParseError if any of the specified keywords matched
 /// :return: The first matched keyword
+// TODO: Change keywords to Vec<&str>
 fn keyword(text: &mut Parser, keywords: Vec<String>) -> Result<String, ParseError> {
     if text.pos >= text.len {
         return Err(ParseError::new(
@@ -766,8 +768,8 @@ fn quotedStringWithVar(text: &mut Parser) -> RuleResult {
             match getVariableValue(text, varName) {
                 Ok(some_var) => {
                     let var_chars: Vec<char> = match some_var {
-                        VariableValue::String(var_value_str) => var_value_str.chars().collect(),
-                        VariableValue::Number(var_value_number) => {
+                        VariableValueType::String(var_value_str) => var_value_str.chars().collect(),
+                        VariableValueType::Number(var_value_number) => {
                             var_value_number.to_string().chars().collect()
                         }
                         _ => {
@@ -820,15 +822,15 @@ fn eatWsAndNewLines(text: &mut Parser) {
 fn getVariableValue(
     text: &mut Parser,
     key: String,
-) -> Result<VariableValue, VariableNotDefinedError> {
+) -> Result<VariableValueType, VariableNotDefinedError> {
     match text.variables.get(&key) {
-        Some(&GuraType::PRIMITIVE(Some(value))) => {
+        Some(&value) => {
             match value {
-                PrimitiveTypeEnum::Number(number_value) => {
-                    return Ok(VariableValue::Number(number_value))
+                VariableValueType::Number(number_value) => {
+                    return Ok(VariableValueType::Number(number_value))
                 }
-                PrimitiveTypeEnum::String(str_value) => {
-                    return Ok(VariableValue::String(str_value))
+                VariableValueType::String(str_value) => {
+                    return Ok(VariableValueType::String(str_value))
                 }
                 // TODO: change to ParseError
                 // _ => return Err(ParseError::new(text.pos, text.line, String::from("Invalid value")))
@@ -836,7 +838,7 @@ fn getVariableValue(
             }
         }
         _ => match env::var(key) {
-            Ok(value) => Ok(VariableValue::String(value)),
+            Ok(value) => Ok(VariableValueType::String(value)),
             Err(e) => Err(VariableNotDefinedError::new(format!(
                 "Variable '{}' is not defined in Gura nor as environment variable",
                 key
@@ -884,5 +886,54 @@ fn guraImport(text: &mut Parser) -> RuleResult {
             text.line,
             String::from("Gura import invalid"),
         ))
+    }
+}
+
+/**
+ * Matches with a variable definition.
+ *
+ * @throws DuplicatedVariableError if the current variable has been already defined.
+ * @returns Match result indicating that a variable has been added.
+ */
+fn variable(text: &mut Parser) -> RuleResult {
+    keyword(text, vec![String::from("$")]);
+    let matched_key = matches(text, vec![Box::new(key)])?;
+
+    if let GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::String(key_value))) = matched_key {
+        maybe_match(text, vec![Box::new(ws)]);
+
+        let matchResult = matches(
+            text,
+            vec![
+                Box::new(basicString),
+                Box::new(literalString),
+                Box::new(number),
+                Box::new(variableValue),
+            ],
+        )?;
+
+        if let GuraType::VariableValue(var_value) = matchResult {
+            if text.variables.contains_key(&key_value) {
+                // TODO: fix to return DuplicatedVariableError
+                // return Err(DuplicatedVariableError::new(format!("Variable '{}' has been already declared", key)));
+                return Err(ParseError::new(
+                    0,
+                    0,
+                    format!("Variable '{}' has been already declared", key_value),
+                ));
+            }
+
+            // Store as variable
+            text.variables.insert(key_value, var_value);
+            Ok(GuraType::VARIABLE)
+        } else {
+            Err(ParseError::new(
+                0,
+                0,
+                String::from("Invalid variable value"),
+            ))
+        }
+    } else {
+        Err(ParseError::new(0, 0, String::from("Key not found")))
     }
 }

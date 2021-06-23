@@ -23,3 +23,16 @@ impl InvalidIndentationError {
 		}
 	}
 }
+
+#[derive(Debug, Clone)]
+pub struct DuplicatedVariableError {
+	msg: String,
+}
+
+impl DuplicatedVariableError {
+	pub fn new(msg: String) -> Self {
+		DuplicatedVariableError {
+			msg,
+		}
+	}
+}
