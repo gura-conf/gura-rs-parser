@@ -1,13 +1,7 @@
 use std::collections::HashMap;
 
-// Number chars
-const BASIC_NUMBERS_CHARS: &str = "0-9";
-const HEX_OCT_BIN: &str = "A-Fa-fxob";
-const INF_AND_NAN: &str = "in"; // The rest of the chars are defined in hex_oct_bin
-// IMPORTANT: '-' char must be last, otherwise it will be interpreted as a range
-const ACCEPTABLE_NUMBER_CHARS: &str = BASIC_NUMBERS_CHARS + HEX_OCT_BIN + INF_AND_NAN + "Ee+._-";
 
-// Acceptable chars for keys
+
 
 
 
@@ -21,68 +15,7 @@ struct GuraParser {
 
 impl GuraParser {
 
-	
-
- 
-
   
-
-  
-
-
-
-  
-
-
-
-
-
-
-
-  
-
-  /**
-   * Matches with a list.
-   *
-   * @returns Matched list.
-   */
-  list (): MatchResult {
-    const result = []
-
-    this.maybeMatch([this.ws])
-    this.keyword(['['])
-    while (true) {
-      // Discards useless lines between elements of array
-      const uselessLine = this.maybeMatch([this.uselessLine])
-      if (uselessLine !== null) {
-        continue
-      }
-
-      let item: MatchResult | null = this.maybeMatch([this.anyType])
-      if (item === null) {
-        break
-      }
-
-      if (item.resultType === MatchResultType.EXPRESSION) {
-        item = item.value[0]
-      } else {
-        item = item.value
-      }
-
-      result.push(item)
-
-      this.maybeMatch([this.ws])
-      this.maybeMatch([this.newLine])
-      if (!this.maybeKeyword([','])) {
-        break
-      }
-    }
-
-    this.maybeMatch([this.ws])
-    this.maybeMatch([this.newLine])
-    this.keyword([']'])
-    return { resultType: MatchResultType.LIST, value: result }
-  }
 
 
 
@@ -197,75 +130,6 @@ impl GuraParser {
 
 
 
-  /**
-   * Parses a string checking if it is a number and get its correct value.
-   *
-   * @throws ParseError if the extracted string is not a valid number.
-   * @returns Returns an number or a float depending of type inference.
-   */
-  number (): MatchResult {
-    let numberType: 'integer' | 'float' = 'integer'
-
-    const chars = [this.char(ACCEPTABLE_NUMBER_CHARS)]
-
-    while (true) {
-      const char = this.maybeChar(ACCEPTABLE_NUMBER_CHARS)
-      if (char === null) {
-        break
-      }
-
-      if ('Ee.'.includes(char)) {
-        numberType = 'float'
-      }
-
-      chars.push(char)
-    }
-
-    // Replaces underscores as JS does not support them
-    const result = chars.join('').trimRight().replace(/_/g, '')
-
-    // Checks hexadecimal and octal format
-    const prefix = result.substring(0, 2)
-    if (['0x', '0o', '0b'].includes(prefix)) {
-      let base: number
-      const withoutPrefix = result.substring(2)
-      switch (prefix) {
-        case '0x':
-          base = 16
-          break
-        case '0o':
-          base = 8
-          break
-        default:
-          base = 2
-          break
-      }
-
-      return { resultType: MatchResultType.PRIMITIVE, value: parseInt(withoutPrefix, base) }
-    }
-
-    // Checks inf or NaN
-    const lastThreeChars = result.substring(result.length - 3)
-    if (lastThreeChars === 'inf') {
-      return { resultType: MatchResultType.PRIMITIVE, value: result[0] === '-' ? -Infinity : Infinity }
-    } else {
-      if (lastThreeChars === 'nan') {
-        return { resultType: MatchResultType.PRIMITIVE, value: NaN }
-      }
-    }
-
-    // NOTE: JS does not raise a parsing error when an invalid value is casted to number. That's why it's checked here
-    const resultValue = numberType === 'integer' ? parseInt(result) : parseFloat(result)
-    if (isNaN(resultValue)) {
-      throw new ParseError(
-        this.pos + 1,
-        this.line,
-        `'${result}' is not a valid number`
-      )
-    }
-
-    return { resultType: MatchResultType.PRIMITIVE, value: resultValue }
-  }
 
   
 
