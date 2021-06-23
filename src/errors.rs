@@ -36,3 +36,16 @@ impl DuplicatedVariableError {
 		}
 	}
 }
+
+#[derive(Debug, Clone)]
+pub struct DuplicatedKeyError {
+	msg: String,
+}
+
+impl DuplicatedKeyError {
+	pub fn new(msg: String) -> Self {
+		DuplicatedKeyError {
+			msg,
+		}
+	}
+}

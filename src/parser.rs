@@ -1,15 +1,17 @@
 use itertools::Itertools;
-use std::{
-    collections::{HashMap, HashSet},
-    env,
-    error::Error,
-    fmt::{self},
-    ops::AddAssign,
-    usize, vec,
-};
+use std::{collections::{HashMap, HashSet}, env, error::Error, f64::{INFINITY, NAN, NEG_INFINITY}, fmt::{self}, ops::AddAssign, usize, vec};
 
-use crate::errors::{DuplicatedVariableError, InvalidIndentationError, VariableNotDefinedError};
+use crate::errors::{DuplicatedKeyError, DuplicatedVariableError, InvalidIndentationError, VariableNotDefinedError};
 
+// Number chars
+const BASIC_NUMBERS_CHARS: String = String::from("0-9");
+const HEX_OCT_BIN: String = String::from("A-Fa-fxob");
+const INF_AND_NAN: String = String::from("in"); // The rest of the chars are defined in hex_oct_bin
+
+// IMPORTANT: '-' char must be last, otherwise it will be interpreted as a range
+const ACCEPTABLE_NUMBER_CHARS: Option<String> = Some(BASIC_NUMBERS_CHARS + &HEX_OCT_BIN + &INF_AND_NAN + "Ee+._-");
+
+// Acceptable chars for keys
 const KEY_ACCEPTABLE_CHARS: Option<String> = Some(String::from("0-9A-Za-z_"));
 
 // Special characters to be escaped
@@ -48,7 +50,8 @@ impl fmt::Display for ValueError {
 enum PrimitiveTypeEnum {
     Bool(bool),
     String(String),
-    Number(f64),
+    Integer(u64),
+    Float(f64),
 }
 
 #[derive(Debug)]
@@ -64,13 +67,15 @@ type PrimitiveType = Option<PrimitiveTypeEnum>;
 // TODO: differentiate between all the types and only the valid types for final result map
 #[derive(Debug)]
 enum GuraType {
+    Null,
+    Indentation(usize),
     USELESS_LINE,
-    PAIR(String, Box<GuraType>),
+    PAIR(String, Box<GuraType>, usize),
     COMMENT,
     IMPORT(String),
     VARIABLE,
     VariableValue(VariableValueType),
-    EXPRESSION((Box<GuraType>, usize)),
+    EXPRESSION(HashMap<String, Box<GuraType>>, usize),
     PRIMITIVE(PrimitiveType),
     LIST(Vec<Box<GuraType>>),
     WsOrNewLine,
@@ -706,7 +711,7 @@ fn comment(text: &mut Parser) -> RuleResult {
 *
 * @returns Indentation level.
 */
-fn wsWithIndentation(text: &mut Parser) -> Result<usize, InvalidIndentationError> {
+fn wsWithIndentation(text: &mut Parser) -> RuleResult {
     let mut currentIndentationLevel = 0;
 
     while text.pos < text.len {
@@ -719,7 +724,11 @@ fn wsWithIndentation(text: &mut Parser) -> Result<usize, InvalidIndentationError
 
         // Tabs are not allowed
         if blank.unwrap() == "\t" {
-            return Err(InvalidIndentationError::new(String::from(
+            // TODO: return InvalidIndentationError
+            // return Err(InvalidIndentationError::new(String::from(
+            //     "Tabs are not allowed to define indentation blocks",
+            // )));
+            return Err(ParseError::new(0, 0, String::from(
                 "Tabs are not allowed to define indentation blocks",
             )));
         }
@@ -727,7 +736,7 @@ fn wsWithIndentation(text: &mut Parser) -> Result<usize, InvalidIndentationError
         currentIndentationLevel += 1
     }
 
-    Ok(currentIndentationLevel)
+    Ok(GuraType::Indentation(currentIndentationLevel))
 }
 
 /**
@@ -940,6 +949,7 @@ fn variable(text: &mut Parser) -> RuleResult {
 
 /**
 * Removes, if exists, the last indentation level.
+* TODO: put inside struct
 */
 fn removeLastIndentationLevel(text: &mut Parser) {
     if text.indentationLevels.len() > 0 {
@@ -1010,4 +1020,308 @@ fn unquotedString(text: &mut Parser) -> RuleResult {
     Ok(GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::String(
         trimmed_str,
     ))))
+}
+
+
+/**
+* Parses a string checking if it is a number and get its correct value.
+*
+* @throws ParseError if the extracted string is not a valid number.
+* @returns Returns an number or a float depending of type inference.
+*/
+fn number (text: &mut Parser) -> RuleResult {
+    #[derive(Debug, PartialEq, Eq)]
+    enum NumberType {
+        Integer,
+        Float
+    }
+
+    let mut numberType = NumberType::Integer;
+
+    let chars = vec![char(text, ACCEPTABLE_NUMBER_CHARS)?];
+
+    loop {
+      let matched_char = maybe_char(text, ACCEPTABLE_NUMBER_CHARS);
+      match matched_char {
+          Some(a_char) => {
+            if String::from("Ee.").contains(a_char) {
+                numberType = NumberType::Float
+            }
+
+            chars.push(a_char)
+          },
+          None => break
+      };
+    }
+
+    // Replaces underscores as Rust does not support them in the same way Gura does
+    let result = chars
+        .iter()
+        .cloned()
+        .collect::<String>()
+        .trim_end()
+        .replace("_", "");
+
+    // Checks hexadecimal, octal and binary format
+    let prefix = result[0..2].to_string().as_str();
+    if vec!["0x", "0o", "0b"].contains(&prefix) {
+      let base: u32;
+      let withoutPrefix = result[2..].to_string();
+      match prefix {
+        "0x" => base = 16,
+        "0o" => base = 8,
+        _ => base = 2
+      };
+
+      let int_value = u64::from_str_radix(&withoutPrefix, base).unwrap();
+      return Ok(GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::Integer(int_value))));
+    }
+
+    // Checks inf or NaN
+    let lastThreeChars = result[result.len() - 3..].to_string().as_str();
+    match lastThreeChars {
+        "inf" => {
+            return Ok(GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::Float(
+                if result.chars().next().unwrap() == '-' { NEG_INFINITY } else { INFINITY }
+            ))));
+        },
+        "nan" => {
+            return Ok(GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::Float(NAN))));
+        },
+        _ => {
+            // It's a normal number
+            if numberType == NumberType::Integer {
+                if let Ok(value) = result.parse::<u64>() {
+                    return Ok(GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::Integer(value))))
+                }
+            } else {
+                if numberType == NumberType::Float {
+                    if let Ok(value) = result.parse::<f64>() {
+                        return Ok(GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::Float(value))))
+                    }
+                }
+            }
+
+            Err(
+                ParseError::new(
+                    text.pos + 1,
+                    text.line,
+                    format!("'{}' is not a valid number", result)
+                )
+            )
+        }
+    }
+}
+
+/**
+   * Matches with a list.
+   *
+   * @returns Matched list.
+   */
+fn list (text: &mut Parser) -> RuleResult {
+    const result: Vec<Box<GuraType>> = Vec::new();
+
+    maybe_match(text, vec![Box::new(ws)]);
+    // TODO: try char
+    keyword(text, vec![String::from("[")])?;
+    loop {
+      // Discards useless lines between elements of array
+      match maybe_match(text, vec![Box::new(uselessLine)]) {
+        Some(_) => continue,
+        _ => {
+            let item: Box<GuraType>
+            match maybe_match(text, vec![Box::new(anyType)]) {
+                None => break,
+                Some(GuraType::EXPRESSION(value)) => item = value.0,
+                Some(value) => item = Box::new(value)
+            }
+    
+            result.push(item);
+      
+            maybe_match(text, vec![Box::new(ws)]);
+            maybe_match(text, vec![Box::new(new_Line)]);
+            // TODO: try char()
+            if maybe_keyword(text, vec![String::from(",")]).is_none() {
+              break
+            }
+        }
+      }
+
+    }
+
+    maybe_match(text, vec![Box::new(ws)]);
+    maybe_match(text, vec![Box::new(new_Line)]);
+    // TODO: try char()
+    keyword(text, vec![String::from("]")])?;
+    Ok(GuraType::LIST(result))
+}
+
+/**
+* Matches with a simple / multiline literal string.
+*
+* @returns Matched string.
+*/
+fn literalString (text: &mut Parser) -> RuleResult {
+    let quote = keyword(text, vec![String::from("'''"), String::from("'")])?;
+
+    let isMultiline = quote == "'''";
+
+    // NOTE: A newline immediately following the opening delimiter will be trimmed.All other whitespace and
+    // newline characters remain intact.
+    if isMultiline {
+        maybe_char(text, Some(String::from("\n")));
+    }
+
+    let chars: Vec<char> = Vec::new();
+
+    loop {
+      match maybe_keyword(text, vec![String::from(quote)]) {
+        Some(_) => break,
+        _ => {
+            let matched_char = char(text, None)?;
+            chars.push(matched_char);
+        }
+      }
+    }
+
+    let final_string = chars.iter().cloned().collect::<String>();
+    Ok(GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::String(
+        final_string,
+    ))))
+  }
+
+
+  /**
+   * Match any Gura expression.
+   *
+   * @throws DuplicatedKeyError if any of the defined key was declared more than once.
+   * @returns Object with Gura string data.
+   */
+fn expression (text: &mut Parser) -> RuleResult {
+    let mut result: HashMap<String, Box<GuraType>> = HashMap::new();
+    let mut indentationLevel = 0;
+    while text.pos < text.len {
+      match maybe_match(text, vec![Box::new(variable), Box::new(pair), Box::new(uselessLine)]) {
+            None => break,
+            Some(GuraType::PAIR(key, value, indentation)) => {
+                if result.contains_key(&key) {
+                    // TODO: return DuplicatedKeyError
+                    // return Err(DuplicatedKeyError::new(
+                    //     format!("The key '{}' has been already defined", key)
+                    // ));
+                    return Err(ParseError::new(
+                        0, 0,
+                        format!("The key '{}' has been already defined", key)
+                    ));
+                }
+
+                result.insert(key, value);
+                indentationLevel = indentation
+            },
+            _ => () // If it's not a pair does nothing!
+      }
+
+      if maybe_keyword(text, vec![String::from("]"), String::from(",")]).is_some() {
+        // Breaks if it is the end of a list
+        removeLastIndentationLevel(text);
+        text.pos -= 1;
+        break
+      }
+    }
+
+    Ok(GuraType::EXPRESSION(result, indentationLevel))
+}
+
+  /**
+   * Matches with a key - value pair taking into consideration the indentation levels.
+   *
+   * @returns Matched key - value pair.null if the indentation level is lower than the last one(to indicate the ending of a parent object).
+   */
+fn pair (text: &mut Parser) -> RuleResult {
+    let posBeforePair = text.pos;
+
+    // let currentIndentationLevel = maybe_match(text, vec![Box::new(wsWithIndentation)]);
+    if let GuraType::Indentation(currentIndentationLevel) = matches(text, vec![Box::new(wsWithIndentation)])? {
+        let matched_key = matches(text, vec![Box::new(key)])?;
+
+        if let GuraType::PRIMITIVE(Some(PrimitiveTypeEnum::String(key_value))) = matched_key {
+            maybe_match(text, vec![Box::new(ws)]);
+            maybe_match(text, vec![Box::new(new_Line)]);
+    
+            // Check indentation
+            let lastIndentationBlock = getLastIndentationLevel(text);
+        
+            // Check if indentation is divisible by 4
+            if currentIndentationLevel % 4 != 0 {
+                // TODO: returns InvalidIndentationError
+                // return Err(
+                //     InvalidIndentationError::new(
+                //         format!("Indentation block ({}) must be divisible by 4", currentIndentationLevel)
+                //     )
+                // )
+                return Err(
+                    ParseError::new(
+                        0, 0,
+                        format!("Indentation block ({}) must be divisible by 4", currentIndentationLevel)
+                    )
+                )
+            }
+        
+            if lastIndentationBlock.is_none() || currentIndentationLevel > lastIndentationBlock.unwrap() {
+                text.indentationLevels.push(currentIndentationLevel)
+            } else {
+                if currentIndentationLevel < lastIndentationBlock.unwrap() {
+                    removeLastIndentationLevel(text);
+            
+                    // As the indentation was consumed, it is needed to return to line beginning to get the indentation level
+                    // again in the previous matching.Otherwise, the other match would get indentation level = 0
+                    text.pos = posBeforePair;
+                    return Ok(GuraType::Null) // This breaks the parent loop
+                }
+            }
+        
+            // If it == null then is an empty expression, and therefore invalid
+            let result: Box<GuraType>;
+            let matched_any = matches(text, vec![Box::new(anyType)])?;
+            match matched_any {
+                GuraType::Null => {
+                    return Err(ParseError::new(
+                        text.pos + 1,
+                        text.line,
+                        String::from("Invalid pair")
+                    ))
+                },
+                GuraType::EXPRESSION(objectValues, indentationLevel) => {
+                    if indentationLevel == currentIndentationLevel {
+                        // TODO: return InvalidIndentationError
+                        // return Err(
+                        //     InvalidIndentationError::new(String::from(format!("Wrong level for parent with key {}", key))
+                        // )
+                        return Err(
+                            ParseError::new(0, 0, String::from(format!("Wrong level for parent with key {}", key_value)))
+                        );
+                    } else {
+                        let diff = currentIndentationLevel.max(indentationLevel) - currentIndentationLevel.min(indentationLevel);
+                        if diff != 4 {
+                            // TODO: return InvalidIndentationError
+                            // return Err(InvalidIndentationError::new(String::from("Difference between different indentation levels must be 4")
+                            return Err(
+                                ParseError::new(0, 0, String::from("Difference between different indentation levels must be 4"))
+                            )
+                        }
+                    }
+        
+                    result = Box::new(matched_any);
+                },
+                other_gura_type => result = Box::new(other_gura_type)
+            }
+            maybe_match(text, vec![Box::new(new_Line)]);
+        
+            Ok(GuraType::PAIR(key_value, result, currentIndentationLevel))
+        } else {
+            return Err(ParseError::new(text.pos, text.line, String::from("Invalid key")));
+        }
+    } else {
+        return Err(ParseError::new(text.pos, text.line, String::from("Invalid indentation value")));
+    }
 }
