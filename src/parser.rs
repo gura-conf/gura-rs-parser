@@ -72,7 +72,7 @@ impl ParseError {
 }
 
 // TODO: implement
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum PrimitiveTypeEnum {
     Bool(bool),
     String(String),
@@ -91,7 +91,7 @@ type PrimitiveType = Option<PrimitiveTypeEnum>;
 /* Data types to be returned by match expression methods */
 // TODO: change to CamelCase
 // TODO: differentiate between all the types and only the valid types for final result map
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum GuraType {
     Null,
     Indentation(usize),
@@ -330,7 +330,7 @@ fn basicString(text: &mut Parser) -> RuleResult {
             // Computes variables values in string
             if current_char == '$' {
                 let varName = getVarName(text);
-                let var_value_str: String = match getVariableValue(text, varName)? {
+                let var_value_str: String = match getVariableValue(text, &varName)? {
                     VariableValueType::Number(number) => number.to_string(),
                     VariableValueType::String(value) => value,
                 };
@@ -452,7 +452,7 @@ fn variableValue(text: &mut Parser) -> RuleResult {
     keyword(text, &vec![String::from("$")])?;
     match matches(text, vec![Box::new(unquotedString)])? {
         GuraType::Primitive(Some(PrimitiveTypeEnum::String(key_name))) => {
-            let var_value = getVariableValue(text, key_name)?;
+            let var_value = getVariableValue(text, &key_name)?;
             Ok(GuraType::VariableValue(var_value))
         }
         _ => Err(Box::new(ParseError::new(
@@ -804,9 +804,9 @@ fn quotedStringWithVar(text: &mut Parser) -> RuleResult {
         // Computes variables values in string
         if current_char == '$' {
             let varName = getVarName(text);
-            match getVariableValue(text, varName) {
+            match getVariableValue(text, &varName) {
                 Ok(some_var) => {
-                    let var_chars: Vec<char> = match some_var {
+                    let mut var_chars: Vec<char> = match some_var {
                         VariableValueType::String(var_value_str) => var_value_str.chars().collect(),
                         VariableValueType::Number(var_value_number) => {
                             var_value_number.to_string().chars().collect()
@@ -855,15 +855,14 @@ fn eatWsAndNewLines(text: &mut Parser) {
 * @throws VariableNotDefinedError if the variable is not defined in file nor environment.
 * @returns Variable value.
 */
-fn getVariableValue(text: &mut Parser, key: String) -> Result<VariableValueType, Box<dyn Error>> {
-    let var = text.variables.get(&key);
-    match &var {
-        Some(&value) => match value {
+fn getVariableValue(text: &mut Parser, key: &String) -> Result<VariableValueType, Box<dyn Error>> {
+    match text.variables.get(key) {
+        Some(ref value) => match value {
             VariableValueType::Number(number_value) => {
-                return Ok(VariableValueType::Number(number_value))
+                return Ok(VariableValueType::Number(*number_value))
             }
             VariableValueType::String(str_value) => {
-                return Ok(VariableValueType::String(str_value))
+                return Ok(VariableValueType::String(str_value.clone()))
             }
             _ => {
                 return Err(Box::new(ParseError::new(
@@ -1095,7 +1094,8 @@ fn number(text: &mut Parser) -> RuleResult {
         .replace("_", "");
 
     // Checks hexadecimal, octal and binary format
-    let prefix = result[0..2].to_string().as_str();
+    let prefix = result[0..2].to_string();
+    let prefix = prefix.as_str();
     if vec!["0x", "0o", "0b"].contains(&prefix) {
         let base: u32;
         let withoutPrefix = result[2..].to_string();
@@ -1112,7 +1112,8 @@ fn number(text: &mut Parser) -> RuleResult {
     }
 
     // Checks inf or NaN
-    let lastThreeChars = result[result.len() - 3..].to_string().as_str();
+    let lastThreeChars = result[result.len() - 3..].to_string();
+    let lastThreeChars = lastThreeChars.as_str();
     match lastThreeChars {
         "inf" => {
             return Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::Float(
@@ -1310,7 +1311,7 @@ fn pair(text: &mut Parser) -> RuleResult {
 
             // If it == null then is an empty expression, and therefore invalid
             let matched_any = matches(text, vec![Box::new(anyType)])?;
-            let result: Box<GuraType> = Box::new(matched_any);
+            let result: Box<GuraType> = Box::new(matched_any.clone());
             match matched_any {
                 GuraType::Null => {
                     return Err(Box::new(ParseError::new(
@@ -1319,7 +1320,7 @@ fn pair(text: &mut Parser) -> RuleResult {
                         String::from("Invalid pair"),
                     )))
                 }
-                GuraType::Object(objectValues, indentationLevel) => {
+                GuraType::Object(_, indentationLevel) => {
                     if indentationLevel == currentIndentationLevel {
                         return Err(Box::new(InvalidIndentationError::new(String::from(
                             format!("Wrong level for parent with key {}", key_value),
