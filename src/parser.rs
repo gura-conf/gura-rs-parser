@@ -73,7 +73,7 @@ impl ParseError {
 
 // TODO: implement
 #[derive(Debug, Clone)]
-enum PrimitiveTypeEnum {
+pub enum PrimitiveTypeEnum {
     Bool(bool),
     String(String),
     Integer(u64),
@@ -81,18 +81,18 @@ enum PrimitiveTypeEnum {
 }
 
 #[derive(Debug, Clone)]
-enum VariableValueType {
+pub enum VariableValueType {
     String(String),
     Number(f64),
 }
 
-type PrimitiveType = Option<PrimitiveTypeEnum>;
+pub type PrimitiveType = Option<PrimitiveTypeEnum>;
 
 /* Data types to be returned by match expression methods */
 // TODO: change to CamelCase
 // TODO: differentiate between all the types and only the valid types for final result map
 #[derive(Debug, Clone)]
-enum GuraType {
+pub enum GuraType {
     Null,
     Indentation(usize),
     UselessLine,
@@ -127,8 +127,8 @@ struct Parser {
     len: usize,
     cache: HashMap<String, String>,
     variables: HashMap<String, VariableValueType>,
-    indentationLevels: Vec<usize>,
-    importedFiles: HashSet<String>,
+    indentation_levels: Vec<usize>,
+    imported_files: HashSet<String>,
 }
 
 impl Parser {
@@ -140,8 +140,8 @@ impl Parser {
             len: 0,
             text: String::new(),
             variables: HashMap::new(),
-            indentationLevels: Vec::new(),
-            importedFiles: HashSet::new(),
+            indentation_levels: Vec::new(),
+            imported_files: HashSet::new(),
         }
     }
 
@@ -164,9 +164,9 @@ impl Parser {
 * @returns Dict with all the extracted values from Gura string.
 */
 fn start(text: &mut Parser) -> RuleResult {
-    computeImports(text, None, HashSet::new());
-    let result = matches(text, vec![Box::new(expression)])?;
-    eatWsAndNewLines(text);
+    compute_imports(text, None, HashSet::new())?;
+    let result = matches(text, vec![Box::new(object)])?;
+    eat_ws_and_new_lines(text);
     Ok(result)
 }
 
@@ -176,13 +176,13 @@ fn start(text: &mut Parser) -> RuleResult {
  * @returns The corresponding matched value.
  */
 
-fn anyType(text: &mut Parser) -> RuleResult {
-    let result = maybe_match(text, vec![Box::new(primitiveType)]);
+fn any_type(text: &mut Parser) -> RuleResult {
+    let result = maybe_match(text, vec![Box::new(primitive_type)]);
 
     if let Some(result) = result {
         Ok(result)
     } else {
-        matches(text, vec![Box::new(complexType)])
+        matches(text, vec![Box::new(complex_type)])
     }
 }
 
@@ -191,17 +191,17 @@ fn anyType(text: &mut Parser) -> RuleResult {
  *
  * @returns The corresponding matched value.
  */
-fn primitiveType(text: &mut Parser) -> RuleResult {
+fn primitive_type(text: &mut Parser) -> RuleResult {
     maybe_match(text, vec![Box::new(ws)]);
     matches(
         text,
         vec![
             Box::new(null),
             Box::new(boolean),
-            Box::new(basicString),
-            Box::new(literalString),
+            Box::new(basic_string),
+            Box::new(literal_string),
             Box::new(number),
-            Box::new(variableValue),
+            Box::new(variable_value),
         ],
     )
 }
@@ -212,12 +212,12 @@ fn primitiveType(text: &mut Parser) -> RuleResult {
 * @throws ParseError if the line contains valid data.
 * @returns MatchResult indicating the presence of a useless line.
 */
-fn uselessLine(text: &mut Parser) -> RuleResult {
+fn useless_line(text: &mut Parser) -> RuleResult {
     matches(text, vec![Box::new(ws)])?;
     let comment = maybe_match(text, vec![Box::new(comment)]);
-    let initialLine = text.line;
-    maybe_match(text, vec![Box::new(new_Line)]);
-    let is_new_line = (text.line - initialLine) == 1;
+    let initial_line = text.line;
+    maybe_match(text, vec![Box::new(new_line)]);
+    let is_new_line = (text.line - initial_line) == 1;
 
     if comment.is_none() && !is_new_line {
         return Err(Box::new(ParseError::new(
@@ -235,8 +235,8 @@ fn uselessLine(text: &mut Parser) -> RuleResult {
 *
 * @returns List or Dict, depending the correct matching.
 */
-fn complexType(text: &mut Parser) -> RuleResult {
-    matches(text, vec![Box::new(list), Box::new(expression)])
+fn complex_type(text: &mut Parser) -> RuleResult {
+    matches(text, vec![Box::new(list), Box::new(object)])
 }
 
 /**
@@ -245,7 +245,7 @@ fn complexType(text: &mut Parser) -> RuleResult {
 * @returns Null.
 */
 fn null(text: &mut Parser) -> RuleResult {
-    keyword(text, &vec![String::from("null")]);
+    keyword(text, &vec![String::from("null")])?;
     Ok(GuraType::Primitive(None))
 }
 
@@ -264,14 +264,14 @@ fn boolean(text: &mut Parser) -> RuleResult {
  *
  * @returns Matched string.
  */
-fn basicString(text: &mut Parser) -> RuleResult {
+fn basic_string(text: &mut Parser) -> RuleResult {
     let quote = keyword(text, &vec![String::from("\"\"\""), String::from("\"")])?;
 
-    let isMultiline = quote == "\"\"\"";
+    let is_multiline = quote == "\"\"\"";
 
     // NOTE: A newline immediately following the opening delimiter will be trimmed.All other whitespace and
     // newline characters remain intact.
-    if isMultiline {
+    if is_multiline {
         maybe_char(text, &Some(String::from("\n")));
     }
 
@@ -280,8 +280,8 @@ fn basicString(text: &mut Parser) -> RuleResult {
     let escape_sequences_map = escape_sequences();
 
     loop {
-        let closingQuote = maybe_keyword(text, &vec![quote.clone()]);
-        if closingQuote.is_some() {
+        let closing_quote = maybe_keyword(text, &vec![quote.clone()]);
+        if closing_quote.is_some() {
             break;
         }
 
@@ -290,21 +290,21 @@ fn basicString(text: &mut Parser) -> RuleResult {
             let escape = char(text, &None)?;
 
             // Checks backslash followed by a newline to trim all whitespaces
-            if isMultiline && escape == '\n' {
-                eatWsAndNewLines(text)
+            if is_multiline && escape == '\n' {
+                eat_ws_and_new_lines(text)
             } else {
                 // Supports Unicode of 16 and 32 bits representation
                 if escape == 'u' || escape == 'U' {
-                    let numCharsCodePoint = if escape == 'u' { 4 } else { 8 };
-                    let mut codePoint: Vec<char> = Vec::with_capacity(numCharsCodePoint);
-                    for _ in 0..numCharsCodePoint {
+                    let num_chars_code_point = if escape == 'u' { 4 } else { 8 };
+                    let mut code_point: Vec<char> = Vec::with_capacity(num_chars_code_point);
+                    for _ in 0..num_chars_code_point {
                         let code_point_char = char(text, &Some(String::from("0-9a-fA-F")))?;
-                        codePoint.push(code_point_char);
+                        code_point.push(code_point_char);
                     }
-                    let codePointStr = codePoint.iter().cloned().collect::<String>();
-                    let hexValue = u32::from_str_radix(codePointStr.as_str(), 16);
+                    let code_point_str = code_point.iter().cloned().collect::<String>();
+                    let hex_value = u32::from_str_radix(code_point_str.as_str(), 16);
                     // TODO: fix to use ? instead of this if
-                    match hexValue {
+                    match hex_value {
                         Err(_) => {
                             return Err(Box::new(ParseError::new(
                                 text.pos,
@@ -312,9 +312,9 @@ fn basicString(text: &mut Parser) -> RuleResult {
                                 String::from("Bad hex value"),
                             )));
                         }
-                        Ok(hexValue) => {
-                            let charValue = char::from_u32(hexValue).unwrap(); // Converts from UNICODE to string
-                            chars.push(charValue)
+                        Ok(hex_value) => {
+                            let char_value = char::from_u32(hex_value).unwrap(); // Converts from UNICODE to string
+                            chars.push(char_value)
                         }
                     };
                 } else {
@@ -329,8 +329,8 @@ fn basicString(text: &mut Parser) -> RuleResult {
         } else {
             // Computes variables values in string
             if current_char == '$' {
-                let varName = getVarName(text);
-                let var_value_str: String = match getVariableValue(text, &varName)? {
+                let var_name = get_var_name(text);
+                let var_value_str: String = match get_variable_value(text, &var_name)? {
                     VariableValueType::Number(number) => number.to_string(),
                     VariableValueType::String(value) => value,
                 };
@@ -354,16 +354,16 @@ fn basicString(text: &mut Parser) -> RuleResult {
  *
  * @returns Variable name.
  */
-fn getVarName(text: &mut Parser) -> String {
+fn get_var_name(text: &mut Parser) -> String {
     let key_acceptable_chars = Some(String::from(KEY_ACCEPTABLE_CHARS));
-    let mut varName = String::new();
-    let mut varNameChar = maybe_char(text, &key_acceptable_chars);
-    while varNameChar.is_some() {
-        varName.push(varNameChar.unwrap());
-        varNameChar = maybe_char(text, &key_acceptable_chars)
+    let mut var_name = String::new();
+    let mut var_name_char = maybe_char(text, &key_acceptable_chars);
+    while var_name_char.is_some() {
+        var_name.push(var_name_char.unwrap());
+        var_name_char = maybe_char(text, &key_acceptable_chars)
     }
 
-    varName
+    var_name
 }
 
 /**
@@ -375,10 +375,10 @@ more than once.
 * @returns Set with imported files after all the imports to reuse in the importation process of the imported
 Gura files.
 */
-fn computeImports(
+fn compute_imports(
     text: &mut Parser,
-    parentDirPath: Option<String>,
-    importedFiles: HashSet<String>,
+    parent_dir_path: Option<String>,
+    imported_files: HashSet<String>,
 ) -> Result<HashSet<String>, ParseError> {
     // TODO: implement after all the rest works
     Ok(HashSet::new())
@@ -447,12 +447,12 @@ fn computeImports(
  *
  * @returns Variable value.
  */
-fn variableValue(text: &mut Parser) -> RuleResult {
+fn variable_value(text: &mut Parser) -> RuleResult {
     // TODO: consider using char(text, vec![String::from("\"")])
     keyword(text, &vec![String::from("$")])?;
-    match matches(text, vec![Box::new(unquotedString)])? {
+    match matches(text, vec![Box::new(unquoted_string)])? {
         GuraType::Primitive(Some(PrimitiveTypeEnum::String(key_name))) => {
-            let var_value = getVariableValue(text, &key_name)?;
+            let var_value = get_variable_value(text, &key_name)?;
             Ok(GuraType::VariableValue(var_value))
         }
         _ => Err(Box::new(ParseError::new(
@@ -489,20 +489,20 @@ fn split_char_ranges(text: &mut Parser, chars: &String) -> Result<String, ValueE
     }
 
     let length = chars.len();
-    let mut chars_vec = chars.chars();
+    // let mut chars_vec = ;
     let mut result = String::with_capacity(length);
     let mut index = 0;
 
     while index < length {
-        if index + 2 < length && chars_vec.nth(index + 1).unwrap() == '-' {
-            if chars_vec.nth(index).unwrap() >= chars_vec.nth(index + 2).unwrap() {
+        if index + 2 < length && chars.chars().nth(index + 1).unwrap() == '-' {
+            if chars.chars().nth(index).unwrap() >= chars.chars().nth(index + 2).unwrap() {
                 return Err(ValueError {});
             }
 
             result.add_assign(chars.get(index..index + 3).unwrap());
             index += 3;
         } else {
-            result.push(chars_vec.nth(index).unwrap());
+            result.push(chars.chars().nth(index).unwrap());
             index += 1;
         }
     }
@@ -612,7 +612,7 @@ fn keyword(text: &mut Parser, keywords: &Vec<String>) -> Result<String, Box<dyn 
 fn matches(text: &mut Parser, rules: Rules) -> RuleResult {
     let mut last_error_pos: usize = 0;
     let mut last_exception: Option<Box<dyn Error>> = None;
-    let last_error_rules: Vec<Box<dyn Error>> = Vec::with_capacity(rules.len());
+    // let last_error_rules: Vec<Box<dyn Error>> = Vec::with_capacity(rules.len());
 
     for rule in rules {
         let initial_pos = text.pos;
@@ -644,20 +644,20 @@ fn matches(text: &mut Parser, rules: Rules) -> RuleResult {
 
     // Unwrap is safe as if this line is reached no rule matched
     // Err(last_exception.unwrap())
-    if last_error_rules.len() == 1 {
-        Err(last_exception.unwrap())
-    } else {
-        let last_error_pos = (text.text.len() - 1).min(last_error_pos);
-        Err(Box::new(ParseError::new(
-            last_error_pos,
-            text.line,
-            format!(
-                "Expected {} but got {}",
-                last_error_rules.iter().join(","),
-                text.text.chars().nth(last_error_pos).unwrap()
-            ),
-        )))
-    }
+    Err(last_exception.unwrap())
+    // if last_error_rules.len() > 0 {
+    // } else {
+    //     let last_error_pos = (text.text.len() - 1).min(last_error_pos);
+    //     Err(Box::new(ParseError::new(
+    //         last_error_pos,
+    //         text.line,
+    //         format!(
+    //             "Expected {} but got {}",
+    //             last_error_rules.iter().join(","),
+    //             text.text.chars().nth(last_error_pos).unwrap()
+    //         ),
+    //     )))
+    // }
 }
 
 /// Like char() but returns None instead of raising ParseError
@@ -692,28 +692,30 @@ fn maybe_keyword(text: &mut Parser, keywords: &Vec<String>) -> Option<String> {
 }
 
 /**
-* Parses a text in Gura format.
-*
-* @param text - Text to be parsed.
-* @throws ParseError if the syntax of text is invalid.
-* @returns Object with all the parsed values.
-*/
-fn parse(text_parser: &mut Parser, text: &String) -> Option<GuraType> {
+ * Parses a text in Gura format.
+ *
+ * @param text - Text to be parsed.
+ * @throws ParseError if the syntax of text is invalid.
+ * @returns Result with all the parsed values.
+ */
+pub fn parse(text: &String) -> RuleResult {
+    let text_parser: &mut Parser = &mut Parser::new();
     text_parser.restart_params(text);
     let result = start(text_parser);
-    assert_end(text_parser);
-    match result {
-        Ok(content) => Some(content),
-        _ => None,
-    }
+    assert_end(text_parser)?;
+    result
+    // match result {
+    // Ok(content) => Some(content),
+    // _ => None,
+    // }
 }
 
 /**
 * Matches with a new line.
 */
-fn new_Line(text: &mut Parser) -> RuleResult {
-    let newLineChars = Some(String::from("\x0c\x0b\r\n"));
-    let res = char(text, &newLineChars);
+fn new_line(text: &mut Parser) -> RuleResult {
+    let new_line_chars = Some(String::from("\x0c\x0b\r\n"));
+    let res = char(text, &new_line_chars);
     if res.is_ok() {
         text.line += 1;
     }
@@ -727,7 +729,7 @@ fn new_Line(text: &mut Parser) -> RuleResult {
 * @returns MatchResult indicating the presence of a comment.
 */
 fn comment(text: &mut Parser) -> RuleResult {
-    keyword(text, &vec![String::from("#")]);
+    keyword(text, &vec![String::from("#")])?;
     while text.pos < text.len {
         let char = text.text.chars().nth(text.pos + 1).unwrap();
         text.pos += 1;
@@ -745,8 +747,8 @@ fn comment(text: &mut Parser) -> RuleResult {
 *
 * @returns Indentation level.
 */
-fn wsWithIndentation(text: &mut Parser) -> RuleResult {
-    let mut currentIndentationLevel = 0;
+fn ws_with_indentation(text: &mut Parser) -> RuleResult {
+    let mut current_indentation_level = 0;
 
     while text.pos < text.len {
         let blank = maybe_keyword(text, &vec![String::from(" "), String::from("\t")]);
@@ -763,10 +765,10 @@ fn wsWithIndentation(text: &mut Parser) -> RuleResult {
             ))));
         }
 
-        currentIndentationLevel += 1
+        current_indentation_level += 1
     }
 
-    Ok(GuraType::Indentation(currentIndentationLevel))
+    Ok(GuraType::Indentation(current_indentation_level))
 }
 
 /**
@@ -786,7 +788,7 @@ fn ws(text: &mut Parser) -> RuleResult {
 *
 * @returns Matched string.
 */
-fn quotedStringWithVar(text: &mut Parser) -> RuleResult {
+fn quoted_string_with_var(text: &mut Parser) -> RuleResult {
     // TODO: consider using char(text, vec![String::from("\"")])
     let quote = keyword(text, &vec![String::from("\"")])?
         .chars()
@@ -803,8 +805,8 @@ fn quotedStringWithVar(text: &mut Parser) -> RuleResult {
 
         // Computes variables values in string
         if current_char == '$' {
-            let varName = getVarName(text);
-            match getVariableValue(text, &varName) {
+            let var_name = get_var_name(text);
+            match get_variable_value(text, &var_name) {
                 Ok(some_var) => {
                     let mut var_chars: Vec<char> = match some_var {
                         VariableValueType::String(var_value_str) => var_value_str.chars().collect(),
@@ -816,7 +818,7 @@ fn quotedStringWithVar(text: &mut Parser) -> RuleResult {
                 }
                 _ => {
                     return Err(Box::new(VariableNotDefinedError::new(String::from(
-                        format!("{} is not defined", varName),
+                        format!("{} is not defined", var_name),
                     ))));
                 }
             }
@@ -834,9 +836,9 @@ fn quotedStringWithVar(text: &mut Parser) -> RuleResult {
 /**
 * Consumes all the whitespaces and new lines.
 */
-fn eatWsAndNewLines(text: &mut Parser) {
-    let wsAndNewLinesChars = Some(String::from(" \x0c\x0b\r\n\t"));
-    while maybe_char(text, &wsAndNewLinesChars).is_some() {
+fn eat_ws_and_new_lines(text: &mut Parser) {
+    let ws_and_new_lines_chars = Some(String::from(" \x0c\x0b\r\n\t"));
+    while maybe_char(text, &ws_and_new_lines_chars).is_some() {
         continue;
     }
 }
@@ -848,7 +850,7 @@ fn eatWsAndNewLines(text: &mut Parser) {
 * @throws VariableNotDefinedError if the variable is not defined in file nor environment.
 * @returns Variable value.
 */
-fn getVariableValue(text: &mut Parser, key: &String) -> Result<VariableValueType, Box<dyn Error>> {
+fn get_variable_value(text: &mut Parser, key: &String) -> Result<VariableValueType, Box<dyn Error>> {
     match text.variables.get(key) {
         Some(ref value) => match value {
             VariableValueType::Number(number_value) => {
@@ -876,15 +878,15 @@ fn getVariableValue(text: &mut Parser, key: &String) -> Result<VariableValueType
 * @param importedFiles - Set with imported files to check if any was imported more than once.
 * @returns Final text with imported files' text on it.
 */
-fn getTextWithImports(
+fn get_text_with_imports(
     text: &mut Parser,
-    originalText: &String,
-    parentDirPath: String,
-    importedFiles: HashSet<String>,
+    original_text: &String,
+    parent_dir_path: String,
+    imported_files: HashSet<String>,
 ) -> Result<(String, HashSet<String>), ParseError> {
-    text.restart_params(originalText);
-    let importedFiles = computeImports(text, Some(parentDirPath), importedFiles)?;
-    Ok((text.text.clone(), importedFiles))
+    text.restart_params(original_text);
+    let imported_files = compute_imports(text, Some(parent_dir_path), imported_files)?;
+    Ok((text.text.clone(), imported_files))
 }
 
 /**
@@ -892,15 +894,15 @@ fn getTextWithImports(
 *
 * @returns MatchResult with file name of imported file.
 */
-fn guraImport(text: &mut Parser) -> RuleResult {
-    keyword(text, &vec![String::from("import")]);
-    char(text, &Some(String::from(" ")));
-    let string_match = matches(text, vec![Box::new(quotedStringWithVar)])?;
+fn gura_import(text: &mut Parser) -> RuleResult {
+    keyword(text, &vec![String::from("import")])?;
+    char(text, &Some(String::from(" ")))?;
+    let string_match = matches(text, vec![Box::new(quoted_string_with_var)])?;
 
-    if let GuraType::Import(fileToImport) = string_match {
-        matches(text, vec![Box::new(ws)]);
-        maybe_match(text, vec![Box::new(new_Line)]);
-        Ok(GuraType::Import(fileToImport))
+    if let GuraType::Import(file_to_import) = string_match {
+        matches(text, vec![Box::new(ws)])?;
+        maybe_match(text, vec![Box::new(new_line)]);
+        Ok(GuraType::Import(file_to_import))
     } else {
         Err(Box::new(ParseError::new(
             text.pos,
@@ -917,23 +919,23 @@ fn guraImport(text: &mut Parser) -> RuleResult {
  * @returns Match result indicating that a variable has been added.
  */
 fn variable(text: &mut Parser) -> RuleResult {
-    keyword(text, &vec![String::from("$")]);
+    keyword(text, &vec![String::from("$")])?;
     let matched_key = matches(text, vec![Box::new(key)])?;
 
     if let GuraType::Primitive(Some(PrimitiveTypeEnum::String(key_value))) = matched_key {
         maybe_match(text, vec![Box::new(ws)]);
 
-        let matchResult = matches(
+        let match_result = matches(
             text,
             vec![
-                Box::new(basicString),
-                Box::new(literalString),
+                Box::new(basic_string),
+                Box::new(literal_string),
                 Box::new(number),
-                Box::new(variableValue),
+                Box::new(variable_value),
             ],
         )?;
 
-        if let GuraType::VariableValue(var_value) = matchResult {
+        if let GuraType::VariableValue(var_value) = match_result {
             if text.variables.contains_key(&key_value) {
                 return Err(Box::new(DuplicatedVariableError::new(format!(
                     "Variable '{}' has been already declared",
@@ -964,9 +966,9 @@ fn variable(text: &mut Parser) -> RuleResult {
 * Removes, if exists, the last indentation level.
 * TODO: put inside struct
 */
-fn removeLastIndentationLevel(text: &mut Parser) {
-    if text.indentationLevels.len() > 0 {
-        text.indentationLevels.pop();
+fn remove_last_indentation_level(text: &mut Parser) {
+    if text.indentation_levels.len() > 0 {
+        text.indentation_levels.pop();
     }
 }
 
@@ -977,7 +979,7 @@ fn removeLastIndentationLevel(text: &mut Parser) {
 * @returns Matched key.
 */
 fn key(text: &mut Parser) -> RuleResult {
-    let matched_key = matches(text, vec![Box::new(unquotedString)]);
+    let matched_key = matches(text, vec![Box::new(unquoted_string)]);
 
     if matched_key.is_ok() {
         // TODO: try char
@@ -1000,11 +1002,11 @@ fn key(text: &mut Parser) -> RuleResult {
 *
 * @returns Last indentation level or null if it does not exist.
 */
-fn getLastIndentationLevel(text: &mut Parser) -> Option<usize> {
-    if text.indentationLevels.len() == 0 {
+fn get_last_indentation_level(text: &mut Parser) -> Option<usize> {
+    if text.indentation_levels.len() == 0 {
         None
     } else {
-        Some(text.indentationLevels[text.indentationLevels.len() - 1])
+        Some(text.indentation_levels[text.indentation_levels.len() - 1])
     }
 }
 
@@ -1013,7 +1015,7 @@ fn getLastIndentationLevel(text: &mut Parser) -> Option<usize> {
  *
  * @returns Parsed unquoted string.
  */
-fn unquotedString(text: &mut Parser) -> RuleResult {
+fn unquoted_string(text: &mut Parser) -> RuleResult {
     let key_acceptable_chars = Some(String::from(KEY_ACCEPTABLE_CHARS));
     let mut chars = vec![char(text, &key_acceptable_chars)?];
 
@@ -1049,20 +1051,20 @@ fn number(text: &mut Parser) -> RuleResult {
         Float,
     }
 
-    let ACCEPTABLE_NUMBER_CHARS: Option<String> = Some(String::from(
+    let acceptable_number_chars: Option<String> = Some(String::from(
         BASIC_NUMBERS_CHARS.to_string() + &HEX_OCT_BIN + &INF_AND_NAN + "Ee+._-",
     ));
 
-    let mut numberType = NumberType::Integer;
+    let mut number_type = NumberType::Integer;
 
-    let mut chars = vec![char(text, &ACCEPTABLE_NUMBER_CHARS)?];
+    let mut chars = vec![char(text, &acceptable_number_chars)?];
 
     loop {
-        let matched_char = maybe_char(text, &ACCEPTABLE_NUMBER_CHARS);
+        let matched_char = maybe_char(text, &acceptable_number_chars);
         match matched_char {
             Some(a_char) => {
                 if String::from("Ee.").contains(a_char) {
-                    numberType = NumberType::Float
+                    number_type = NumberType::Float
                 }
 
                 chars.push(a_char)
@@ -1084,23 +1086,23 @@ fn number(text: &mut Parser) -> RuleResult {
     let prefix = prefix.as_str();
     if vec!["0x", "0o", "0b"].contains(&prefix) {
         let base: u32;
-        let withoutPrefix = result[2..].to_string();
+        let without_prefix = result[2..].to_string();
         match prefix {
             "0x" => base = 16,
             "0o" => base = 8,
             _ => base = 2,
         };
 
-        let int_value = u64::from_str_radix(&withoutPrefix, base).unwrap();
+        let int_value = u64::from_str_radix(&without_prefix, base).unwrap();
         return Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::Integer(
             int_value,
         ))));
     }
 
     // Checks inf or NaN
-    let lastThreeChars = result[result.len() - 3..].to_string();
-    let lastThreeChars = lastThreeChars.as_str();
-    match lastThreeChars {
+    let last_three_chars = result[result.len() - 3..].to_string();
+    let last_three_chars = last_three_chars.as_str();
+    match last_three_chars {
         "inf" => {
             return Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::Float(
                 if result.chars().next().unwrap() == '-' {
@@ -1115,12 +1117,12 @@ fn number(text: &mut Parser) -> RuleResult {
         }
         _ => {
             // It's a normal number
-            if numberType == NumberType::Integer {
+            if number_type == NumberType::Integer {
                 if let Ok(value) = result.parse::<u64>() {
                     return Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::Integer(value))));
                 }
             } else {
-                if numberType == NumberType::Float {
+                if number_type == NumberType::Float {
                     if let Ok(value) = result.parse::<f64>() {
                         return Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::Float(value))));
                     }
@@ -1149,11 +1151,11 @@ fn list(text: &mut Parser) -> RuleResult {
     keyword(text, &vec![String::from("[")])?;
     loop {
         // Discards useless lines between elements of array
-        match maybe_match(text, vec![Box::new(uselessLine)]) {
+        match maybe_match(text, vec![Box::new(useless_line)]) {
             Some(_) => continue,
             _ => {
                 let item: Box<GuraType>;
-                match maybe_match(text, vec![Box::new(anyType)]) {
+                match maybe_match(text, vec![Box::new(any_type)]) {
                     None => break,
                     Some(value) => item = Box::new(value),
                 }
@@ -1161,7 +1163,7 @@ fn list(text: &mut Parser) -> RuleResult {
                 result.push(item);
 
                 maybe_match(text, vec![Box::new(ws)]);
-                maybe_match(text, vec![Box::new(new_Line)]);
+                maybe_match(text, vec![Box::new(new_line)]);
                 // TODO: try char()
                 if maybe_keyword(text, &vec![String::from(",")]).is_none() {
                     break;
@@ -1171,7 +1173,7 @@ fn list(text: &mut Parser) -> RuleResult {
     }
 
     maybe_match(text, vec![Box::new(ws)]);
-    maybe_match(text, vec![Box::new(new_Line)]);
+    maybe_match(text, vec![Box::new(new_line)]);
     // TODO: try char()
     keyword(text, &vec![String::from("]")])?;
     Ok(GuraType::List(result))
@@ -1182,14 +1184,14 @@ fn list(text: &mut Parser) -> RuleResult {
 *
 * @returns Matched string.
 */
-fn literalString(text: &mut Parser) -> RuleResult {
+fn literal_string(text: &mut Parser) -> RuleResult {
     let quote = keyword(text, &vec![String::from("'''"), String::from("'")])?;
 
-    let isMultiline = quote == "'''";
+    let is_multiline = quote == "'''";
 
     // NOTE: A newline immediately following the opening delimiter will be trimmed.All other whitespace and
     // newline characters remain intact.
-    if isMultiline {
+    if is_multiline {
         maybe_char(text, &Some(String::from("\n")));
     }
 
@@ -1217,13 +1219,13 @@ fn literalString(text: &mut Parser) -> RuleResult {
  * @throws DuplicatedKeyError if any of the defined key was declared more than once.
  * @returns Object with Gura string data.
  */
-fn expression(text: &mut Parser) -> RuleResult {
+fn object(text: &mut Parser) -> RuleResult {
     let mut result: HashMap<String, Box<GuraType>> = HashMap::new();
-    let mut indentationLevel = 0;
+    let mut indentation_level = 0;
     while text.pos < text.len {
         match maybe_match(
             text,
-            vec![Box::new(variable), Box::new(pair), Box::new(uselessLine)],
+            vec![Box::new(variable), Box::new(pair), Box::new(useless_line)],
         ) {
             None => break,
             Some(GuraType::Pair(key, value, indentation)) => {
@@ -1235,20 +1237,20 @@ fn expression(text: &mut Parser) -> RuleResult {
                 }
 
                 result.insert(key, value);
-                indentationLevel = indentation
+                indentation_level = indentation
             }
             _ => (), // If it's not a pair does nothing!
         }
 
         if maybe_keyword(text, &vec![String::from("]"), String::from(",")]).is_some() {
             // Breaks if it is the end of a list
-            removeLastIndentationLevel(text);
+            remove_last_indentation_level(text);
             text.pos -= 1;
             break;
         }
     }
 
-    Ok(GuraType::Object(result, indentationLevel))
+    Ok(GuraType::Object(result, indentation_level))
 }
 
 /**
@@ -1257,46 +1259,46 @@ fn expression(text: &mut Parser) -> RuleResult {
  * @returns Matched key - value pair.null if the indentation level is lower than the last one(to indicate the ending of a parent object).
  */
 fn pair(text: &mut Parser) -> RuleResult {
-    let posBeforePair = text.pos;
+    let pos_before_pair = text.pos;
 
     // let currentIndentationLevel = maybe_match(text, vec![Box::new(wsWithIndentation)]);
-    if let GuraType::Indentation(currentIndentationLevel) =
-        matches(text, vec![Box::new(wsWithIndentation)])?
+    if let GuraType::Indentation(current_indentation_level) =
+        matches(text, vec![Box::new(ws_with_indentation)])?
     {
         let matched_key = matches(text, vec![Box::new(key)])?;
 
         if let GuraType::Primitive(Some(PrimitiveTypeEnum::String(key_value))) = matched_key {
             maybe_match(text, vec![Box::new(ws)]);
-            maybe_match(text, vec![Box::new(new_Line)]);
+            maybe_match(text, vec![Box::new(new_line)]);
 
             // Check indentation
-            let lastIndentationBlock = getLastIndentationLevel(text);
+            let last_indentation_block = get_last_indentation_level(text);
 
             // Check if indentation is divisible by 4
-            if currentIndentationLevel % 4 != 0 {
+            if current_indentation_level % 4 != 0 {
                 return Err(Box::new(InvalidIndentationError::new(format!(
                     "Indentation block ({}) must be divisible by 4",
-                    currentIndentationLevel
+                    current_indentation_level
                 ))));
             }
 
-            if lastIndentationBlock.is_none()
-                || currentIndentationLevel > lastIndentationBlock.unwrap()
+            if last_indentation_block.is_none()
+                || current_indentation_level > last_indentation_block.unwrap()
             {
-                text.indentationLevels.push(currentIndentationLevel)
+                text.indentation_levels.push(current_indentation_level)
             } else {
-                if currentIndentationLevel < lastIndentationBlock.unwrap() {
-                    removeLastIndentationLevel(text);
+                if current_indentation_level < last_indentation_block.unwrap() {
+                    remove_last_indentation_level(text);
 
                     // As the indentation was consumed, it is needed to return to line beginning to get the indentation level
                     // again in the previous matching.Otherwise, the other match would get indentation level = 0
-                    text.pos = posBeforePair;
+                    text.pos = pos_before_pair;
                     return Ok(GuraType::Null); // This breaks the parent loop
                 }
             }
 
             // If it == null then is an empty expression, and therefore invalid
-            let matched_any = matches(text, vec![Box::new(anyType)])?;
+            let matched_any = matches(text, vec![Box::new(any_type)])?;
             let result: Box<GuraType> = Box::new(matched_any.clone());
             match matched_any {
                 GuraType::Null => {
@@ -1306,14 +1308,14 @@ fn pair(text: &mut Parser) -> RuleResult {
                         String::from("Invalid pair"),
                     )))
                 }
-                GuraType::Object(_, indentationLevel) => {
-                    if indentationLevel == currentIndentationLevel {
+                GuraType::Object(_, indentation_level) => {
+                    if indentation_level == current_indentation_level {
                         return Err(Box::new(InvalidIndentationError::new(String::from(
                             format!("Wrong level for parent with key {}", key_value),
                         ))));
                     } else {
-                        let diff = currentIndentationLevel.max(indentationLevel)
-                            - currentIndentationLevel.min(indentationLevel);
+                        let diff = current_indentation_level.max(indentation_level)
+                            - current_indentation_level.min(indentation_level);
                         if diff != 4 {
                             return Err(Box::new(InvalidIndentationError::new(String::from(
                                 "Difference between different indentation levels must be 4",
@@ -1321,11 +1323,11 @@ fn pair(text: &mut Parser) -> RuleResult {
                         }
                     }
                 }
-                _ => ()
+                _ => (),
             }
-            maybe_match(text, vec![Box::new(new_Line)]);
+            maybe_match(text, vec![Box::new(new_line)]);
 
-            Ok(GuraType::Pair(key_value, result, currentIndentationLevel))
+            Ok(GuraType::Pair(key_value, result, current_indentation_level))
         } else {
             return Err(Box::new(ParseError::new(
                 text.pos,
