@@ -623,8 +623,8 @@ fn matches(text: &mut Parser, rules: Rules) -> RuleResult {
                     text.pos = initial_pos;
 
                     if err.pos > last_error_pos {
-                        last_exception = Some(e);
                         last_error_pos = err.pos;
+                        last_exception = Some(e);
                         // last_error_rules.clear();
                         // last_error_rules.push(rule.)
                     }
@@ -811,13 +811,6 @@ fn quotedStringWithVar(text: &mut Parser) -> RuleResult {
                         VariableValueType::Number(var_value_number) => {
                             var_value_number.to_string().chars().collect()
                         }
-                        _ => {
-                            return Err(Box::new(ParseError::new(
-                                text.pos,
-                                text.line,
-                                String::from(format!("Variable {} has an invalid type", varName)),
-                            )));
-                        }
                     };
                     chars.append(&mut var_chars);
                 }
@@ -863,13 +856,6 @@ fn getVariableValue(text: &mut Parser, key: &String) -> Result<VariableValueType
             }
             VariableValueType::String(str_value) => {
                 return Ok(VariableValueType::String(str_value.clone()))
-            }
-            _ => {
-                return Err(Box::new(ParseError::new(
-                    text.pos,
-                    text.line,
-                    String::from("Invalid value"),
-                )))
             }
         },
         _ => match env::var(key.clone()) {
