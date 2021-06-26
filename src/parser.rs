@@ -89,7 +89,8 @@ pub enum GuraType {
     Import(String),
     Variable,
     VariableValue(VariableValueType),
-    Object(HashMap<String, Box<GuraType>>, usize),
+    ObjectWithWs(HashMap<String, Box<GuraType>>, usize),
+    Object(HashMap<String, Box<GuraType>>),
     Bool(bool),
     String(String),
     Integer(u64),
@@ -710,13 +711,14 @@ fn maybe_keyword(text: &mut Parser, keywords: &Vec<String>) -> Option<String> {
 pub fn parse(text: &String) -> RuleResult {
     let text_parser: &mut Parser = &mut Parser::new();
     text_parser.restart_params(text);
-    let result = start(text_parser);
+    let result = start(text_parser)?;
     assert_end(text_parser)?;
-    result
-    // match result {
-    // Ok(content) => Some(content),
-    // _ => None,
-    // }
+    
+    if let GuraType::ObjectWithWs(values, _) = result {
+        Ok(GuraType::Object(values))
+    } else {
+        Ok(result)
+    }
 }
 
 /**
@@ -1270,7 +1272,7 @@ fn object(text: &mut Parser) -> RuleResult {
         }
     }
 
-    Ok(GuraType::Object(result, indentation_level))
+    Ok(GuraType::ObjectWithWs(result, indentation_level))
 }
 
 /**
@@ -1319,7 +1321,7 @@ fn pair(text: &mut Parser) -> RuleResult {
 
             // If it == null then is an empty expression, and therefore invalid
             let matched_any = matches(text, vec![Box::new(any_type)])?;
-            let result: Box<GuraType> = Box::new(matched_any.clone());
+            let mut result: Box<GuraType> = Box::new(matched_any.clone());
             match matched_any {
                 GuraType::Null => {
                     return Err(Box::new(ParseError::new(
@@ -1329,7 +1331,7 @@ fn pair(text: &mut Parser) -> RuleResult {
                         String::from("Invalid pair"),
                     )))
                 }
-                GuraType::Object(_, indentation_level) => {
+                GuraType::ObjectWithWs(object_values, indentation_level) => {
                     if indentation_level == current_indentation_level {
                         return Err(Box::new(InvalidIndentationError::new(String::from(
                             format!("Wrong level for parent with key {}", key_value),
@@ -1343,6 +1345,8 @@ fn pair(text: &mut Parser) -> RuleResult {
                             ))));
                         }
                     }
+
+                    result = Box::new(GuraType::Object(object_values));
                 }
                 _ => (),
             }
