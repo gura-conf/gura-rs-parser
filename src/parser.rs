@@ -5,7 +5,6 @@ use std::{
     error::Error,
     f64::{INFINITY, NAN, NEG_INFINITY},
     fmt::{self},
-    ops::AddAssign,
     usize, vec,
 };
 
@@ -71,22 +70,11 @@ impl ParseError {
     }
 }
 
-// TODO: implement
-#[derive(Debug, Clone)]
-pub enum PrimitiveTypeEnum {
-    Bool(bool),
-    String(String),
-    Integer(u64),
-    Float(f64),
-}
-
 #[derive(Debug, Clone)]
 pub enum VariableValueType {
     String(String),
     Number(f64),
 }
-
-pub type PrimitiveType = Option<PrimitiveTypeEnum>;
 
 /* Data types to be returned by match expression methods */
 // TODO: change to CamelCase
@@ -102,7 +90,10 @@ pub enum GuraType {
     Variable,
     VariableValue(VariableValueType),
     Object(HashMap<String, Box<GuraType>>, usize),
-    Primitive(PrimitiveType),
+    Bool(bool),
+    String(String),
+    Integer(u64),
+    Float(f64),
     List(Vec<Box<GuraType>>),
     WsOrNewLine,
 }
@@ -125,7 +116,7 @@ struct Parser {
     pos: usize,
     line: usize,
     len: usize,
-    cache: HashMap<String, String>,
+    cache: HashMap<String, Vec<String>>,
     variables: HashMap<String, VariableValueType>,
     indentation_levels: Vec<usize>,
     imported_files: HashSet<String>,
@@ -221,7 +212,8 @@ fn useless_line(text: &mut Parser) -> RuleResult {
 
     if comment.is_none() && !is_new_line {
         return Err(Box::new(ParseError::new(
-            text.pos + 1,
+            // text.pos + 1,
+            text.pos,
             text.line,
             String::from("It is a valid line"),
         )));
@@ -246,7 +238,7 @@ fn complex_type(text: &mut Parser) -> RuleResult {
 */
 fn null(text: &mut Parser) -> RuleResult {
     keyword(text, &vec![String::from("null")])?;
-    Ok(GuraType::Primitive(None))
+    Ok(GuraType::Null)
 }
 
 /**
@@ -256,7 +248,7 @@ fn null(text: &mut Parser) -> RuleResult {
 */
 fn boolean(text: &mut Parser) -> RuleResult {
     let value = keyword(text, &vec![String::from("true"), String::from("false")])? == "true";
-    Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::Bool(value))))
+    Ok(GuraType::Bool(value))
 }
 
 /**
@@ -344,9 +336,9 @@ fn basic_string(text: &mut Parser) -> RuleResult {
     }
 
     let final_string = chars.iter().cloned().collect::<String>();
-    Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::String(
+    Ok(GuraType::String(
         final_string,
-    ))))
+    ))
 }
 
 /**
@@ -436,7 +428,8 @@ fn compute_imports(
     //   }
 
     //   // Sets as new text
-    //   this.restartParams(finalContent + this.text.substring(this.pos + 1))
+    ////   this.restartParams(finalContent + this.text.substring(this.pos + 1))
+    //   this.restartParams(finalContent + this.text.substring(this.pos))
     // }
 
     // return importedFiles
@@ -451,7 +444,7 @@ fn variable_value(text: &mut Parser) -> RuleResult {
     // TODO: consider using char(text, vec![String::from("\"")])
     keyword(text, &vec![String::from("$")])?;
     match matches(text, vec![Box::new(unquoted_string)])? {
-        GuraType::Primitive(Some(PrimitiveTypeEnum::String(key_name))) => {
+        GuraType::String(key_name) => {
             let var_value = get_variable_value(text, &key_name)?;
             Ok(GuraType::VariableValue(var_value))
         }
@@ -468,11 +461,13 @@ fn variable_value(text: &mut Parser) -> RuleResult {
 fn assert_end(text: &Parser) -> Result<(), ParseError> {
     if text.pos < text.len {
         Err(ParseError::new(
-            text.pos + 1,
+            // text.pos + 1,
+            text.pos,
             text.line,
             format!(
                 "Expected end of string but got {}",
-                text.text.chars().nth(text.pos + 1).unwrap()
+                // text.text.chars().nth(text.pos + 1).unwrap()
+                text.text.chars().nth(text.pos).unwrap()
             ),
         ))
     } else {
@@ -483,14 +478,15 @@ fn assert_end(text: &Parser) -> Result<(), ParseError> {
 /// Generates a list of char from a list of char which could container char ranges (i.e. a-z or 0-9)
 /// :param chars: List of chars to process
 /// :return: List of char with ranges processed
-fn split_char_ranges(text: &mut Parser, chars: &String) -> Result<String, ValueError> {
+// FIXME: it's not generating a good split char ranges
+fn split_char_ranges(text: &mut Parser, chars: &String) -> Result<Vec<String>, ValueError> {
     if text.cache.contains_key(chars) {
-        return Ok(text.cache.get(chars).unwrap().to_string());
+        return Ok(text.cache.get(chars).unwrap().to_vec());
     }
 
     let length = chars.len();
     // let mut chars_vec = ;
-    let mut result = String::with_capacity(length);
+    let mut result: Vec<String> = Vec::new();
     let mut index = 0;
 
     while index < length {
@@ -499,14 +495,15 @@ fn split_char_ranges(text: &mut Parser, chars: &String) -> Result<String, ValueE
                 return Err(ValueError {});
             }
 
-            result.add_assign(chars.get(index..index + 3).unwrap());
+            let some_chars = chars.get(index..index + 3).unwrap();
+            result.push(some_chars.to_string());
             index += 3;
         } else {
-            result.push(chars.chars().nth(index).unwrap());
+            result.push(chars.chars().nth(index).unwrap().to_string());
             index += 1;
         }
     }
-
+    
     text.cache.insert(chars.to_string(), result.clone());
     Ok(result)
 }
@@ -515,10 +512,12 @@ fn split_char_ranges(text: &mut Parser, chars: &String) -> Result<String, ValueE
 /// :param chars: Chars to match. If it is None, it will return the next char in text
 /// :raise: ParseError if any of the specified char (i.e. if chars != None) matched
 /// :return: Matched char
-fn char(text: &mut Parser, chars: &Option<String>) -> Result<char, ParseError> {
-    if text.pos >= text.len {
-        return Err(ParseError::new(
-            text.pos + 1,
+fn char(text: &mut Parser, chars: &Option<String>) -> Result<char, Box<dyn Error>> {
+    // if text.pos >= text.len {
+    if text.pos > text.len {
+        return Err(Box::new(ParseError::new(
+            // text.pos + 1,
+            text.pos,
             text.line,
             format!(
                 "Expected {} but got end of string",
@@ -527,17 +526,18 @@ fn char(text: &mut Parser, chars: &Option<String>) -> Result<char, ParseError> {
                     Some(chars) => format!("{}", chars),
                 }
             ),
-        ));
+        )));
     }
 
-    let next_char = text.text.chars().nth(text.pos + 1).unwrap();
+    // let next_char = text.text.chars().nth(text.pos + 1).unwrap();
+    let next_char = text.text.chars().nth(text.pos).unwrap();
     match chars {
         None => {
             text.pos += 1;
             return Ok(next_char);
         }
         Some(chars_value) => {
-            for char_range in split_char_ranges(text, &chars_value) {
+            for char_range in split_char_ranges(text, &chars_value)? {
                 if char_range.len() == 1 {
                     if next_char == char_range.chars().nth(0).unwrap() {
                         text.pos += 1;
@@ -553,15 +553,16 @@ fn char(text: &mut Parser, chars: &Option<String>) -> Result<char, ParseError> {
                 }
             }
 
-            return Err(ParseError::new(
-                text.pos + 1,
+            return Err(Box::new(ParseError::new(
+                // text.pos + 1,
+                text.pos,
                 text.line,
                 format!(
                     "Expected {} but got {}",
                     format!("[{}]", chars_value),
                     next_char
                 ),
-            ));
+            )));
         }
     }
 }
@@ -572,9 +573,11 @@ fn char(text: &mut Parser, chars: &Option<String>) -> Result<char, ParseError> {
 /// :return: The first matched keyword
 // TODO: Change keywords to Vec<&str>
 fn keyword(text: &mut Parser, keywords: &Vec<String>) -> Result<String, Box<dyn Error>> {
-    if text.pos >= text.len {
+    // if text.pos >= text.len {
+    if text.pos > text.len {
         return Err(Box::new(ParseError::new(
-            text.pos + 1,
+            // text.pos + 1,
+            text.pos,
             text.line,
             format!(
                 "Expected {} but got end of string",
@@ -584,22 +587,28 @@ fn keyword(text: &mut Parser, keywords: &Vec<String>) -> Result<String, Box<dyn 
     }
 
     for keyword in keywords {
-        let low = text.pos + 1;
+        // let low = text.pos + 1;
+        let low = text.pos;
         let high = low + keyword.len();
+        // println!("Keyword -> {} | Text -> {:?} ({} to {})", keyword, text.text.get(low..high), low, high);
 
-        if text.text.get(low..high).unwrap() == keyword {
-            text.pos += keyword.len();
-            return Ok(keyword.to_string());
+        if let Some(current_substring) = text.text.get(low..high) {
+            if current_substring == keyword {
+                text.pos += keyword.len();
+                return Ok(keyword.to_string());
+            }
         }
     }
 
     Err(Box::new(ParseError::new(
-        text.pos + 1,
+        // text.pos + 1,
+        text.pos,
         text.line,
         format!(
             "Expected {} but got {}",
             keywords.iter().join(", "),
-            text.text.chars().nth(text.pos + 1).unwrap()
+            // text.text.chars().nth(text.pos + 1).unwrap()
+            text.text.chars().nth(text.pos).unwrap()
         ),
     )))
 }
@@ -731,7 +740,8 @@ fn new_line(text: &mut Parser) -> RuleResult {
 fn comment(text: &mut Parser) -> RuleResult {
     keyword(text, &vec![String::from("#")])?;
     while text.pos < text.len {
-        let char = text.text.chars().nth(text.pos + 1).unwrap();
+        // let char = text.text.chars().nth(text.pos + 1).unwrap();
+        let char = text.text.chars().nth(text.pos).unwrap();
         text.pos += 1;
         if String::from("\x0c\x0b\r\n").contains(char) {
             text.line += 1;
@@ -828,9 +838,9 @@ fn quoted_string_with_var(text: &mut Parser) -> RuleResult {
     }
 
     let final_string = chars.iter().cloned().collect::<String>();
-    Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::String(
+    Ok(GuraType::String(
         final_string,
-    ))))
+    ))
 }
 
 /**
@@ -922,7 +932,7 @@ fn variable(text: &mut Parser) -> RuleResult {
     keyword(text, &vec![String::from("$")])?;
     let matched_key = matches(text, vec![Box::new(key)])?;
 
-    if let GuraType::Primitive(Some(PrimitiveTypeEnum::String(key_value))) = matched_key {
+    if let GuraType::String(key_value) = matched_key {
         maybe_match(text, vec![Box::new(ws)]);
 
         let match_result = matches(
@@ -987,11 +997,13 @@ fn key(text: &mut Parser) -> RuleResult {
         matched_key
     } else {
         Err(Box::new(ParseError::new(
-            text.pos + 1,
+            // text.pos + 1,
+            text.pos,
             text.line,
             format!(
                 "Expected string but got \"{}\"",
-                text.text.chars().nth(text.pos + 1).unwrap()
+                // text.text.chars().nth(text.pos + 1).unwrap()
+                text.text.chars().nth(text.pos).unwrap()
             ),
         )))
     }
@@ -1033,9 +1045,10 @@ fn unquoted_string(text: &mut Parser) -> RuleResult {
         .collect::<String>()
         .trim_end()
         .to_string();
-    Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::String(
+
+    Ok(GuraType::String(
         trimmed_str,
-    ))))
+    ))
 }
 
 /**
@@ -1094,43 +1107,50 @@ fn number(text: &mut Parser) -> RuleResult {
         };
 
         let int_value = u64::from_str_radix(&without_prefix, base).unwrap();
-        return Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::Integer(
+        return Ok(GuraType::Integer(
             int_value,
-        ))));
+        ));
     }
 
     // Checks inf or NaN
-    let last_three_chars = result[result.len() - 3..].to_string();
+    // Checks result len to prevent "attempt to subtract with overflow" error
+    let last_three_chars = if result.len() >= 3 {
+        result[result.len() - 3..].to_string()
+    } else {
+        String::from("")
+    };
+
     let last_three_chars = last_three_chars.as_str();
     match last_three_chars {
         "inf" => {
-            return Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::Float(
+            return Ok(GuraType::Float(
                 if result.chars().next().unwrap() == '-' {
                     NEG_INFINITY
                 } else {
                     INFINITY
                 },
-            ))));
+            ));
         }
         "nan" => {
-            return Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::Float(NAN))));
+            return Ok(GuraType::Float(NAN));
         }
         _ => {
             // It's a normal number
             if number_type == NumberType::Integer {
                 if let Ok(value) = result.parse::<u64>() {
-                    return Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::Integer(value))));
+                    return Ok(GuraType::Integer(value));
                 }
             } else {
                 if number_type == NumberType::Float {
                     if let Ok(value) = result.parse::<f64>() {
-                        return Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::Float(value))));
+                        return Ok(GuraType::Float(value));
                     }
                 }
             }
 
             Err(Box::new(ParseError::new(
-                text.pos + 1,
+                // text.pos + 1,
+                text.pos,
                 text.line,
                 format!("'{}' is not a valid number", result),
             )))
@@ -1208,9 +1228,9 @@ fn literal_string(text: &mut Parser) -> RuleResult {
     }
 
     let final_string = chars.iter().cloned().collect::<String>();
-    Ok(GuraType::Primitive(Some(PrimitiveTypeEnum::String(
+    Ok(GuraType::String(
         final_string,
-    ))))
+    ))
 }
 
 /**
@@ -1267,7 +1287,7 @@ fn pair(text: &mut Parser) -> RuleResult {
     {
         let matched_key = matches(text, vec![Box::new(key)])?;
 
-        if let GuraType::Primitive(Some(PrimitiveTypeEnum::String(key_value))) = matched_key {
+        if let GuraType::String(key_value) = matched_key {
             maybe_match(text, vec![Box::new(ws)]);
             maybe_match(text, vec![Box::new(new_line)]);
 
@@ -1303,7 +1323,8 @@ fn pair(text: &mut Parser) -> RuleResult {
             match matched_any {
                 GuraType::Null => {
                     return Err(Box::new(ParseError::new(
-                        text.pos + 1,
+                        // text.pos + 1,
+                        text.pos,
                         text.line,
                         String::from("Invalid pair"),
                     )))
