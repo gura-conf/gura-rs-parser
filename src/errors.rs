@@ -2,6 +2,33 @@ use std::{error::Error, fmt};
 
 // TODO: Refactor using macros
 
+// ParseError
+#[derive(Debug, Clone)]
+pub struct ParseError {
+    message: String,
+    pub pos: usize,
+    line: usize,
+}
+
+impl ParseError {
+    pub fn new(pos: usize, line: usize, message: String) -> Self {
+        ParseError { pos, line, message }
+    }
+}
+
+impl Error for ParseError {}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} at line {} position {}",
+            self.message, self.line, self.pos
+        )
+    }
+}
+
+
 #[derive(Debug, Clone)]
 pub struct VariableNotDefinedError {
 	msg: String,
@@ -85,3 +112,16 @@ impl fmt::Display for DuplicatedKeyError {
 }
 
 impl Error for DuplicatedKeyError {}
+
+
+// ValueError
+#[derive(Debug)]
+pub struct ValueError {}
+
+impl Error for ValueError {}
+
+impl fmt::Display for ValueError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Bad character range")
+    }
+}
