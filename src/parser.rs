@@ -262,7 +262,6 @@ fn basic_string(text: &mut Input) -> RuleResult {
                     }
                     let code_point_str = code_point.iter().cloned().collect::<String>();
                     let hex_value = u32::from_str_radix(code_point_str.as_str(), 16);
-                    // TODO: fix to use ? instead of this if
                     match hex_value {
                         Err(_) => {
                             return Err(Box::new(ParseError::new(
@@ -445,7 +444,6 @@ fn assert_end(text: &Input) -> Result<(), ParseError> {
 /// Generates a list of char from a list of char which could container char ranges (i.e. a-z or 0-9)
 /// :param chars: List of chars to process
 /// :return: List of char with ranges processed
-// FIXME: it's not generating a good split char ranges
 fn split_char_ranges(text: &mut Input, chars: &String) -> Result<Vec<String>, ValueError> {
     if text.cache.contains_key(chars) {
         return Ok(text.cache.get(chars).unwrap().to_vec());
@@ -1343,7 +1341,7 @@ fn dump_content(content: &GuraType, indentation_level: usize) -> String {
             }
         },
         GuraType::Bool(bool_value) => result.add_assign(&bool_value.to_string().add("\n")),
-        GuraType::String(str_content) => result.add_assign(&format!("{}\n", str_content)),
+        GuraType::String(str_content) => result.add_assign(&format!("'{}'\n", str_content)),
         GuraType::Integer(number) => result.add_assign(&format!("{}\n", number)),
         GuraType::Float(number) => result.add_assign(&format!("{}\n", number)),
         GuraType::List(list) => {
