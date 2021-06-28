@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use std::{collections::{HashMap, HashSet}, env, error::Error, f64::{INFINITY, NAN, NEG_INFINITY}, fmt, ops::{Add, AddAssign}, usize, vec};
+use std::{cmp::Ordering, collections::{HashMap, HashSet}, env, error::Error, f64::{INFINITY, NAN, NEG_INFINITY}, fmt, ops::{Add, AddAssign, Deref, Index}, usize, vec};
 
 use crate::errors::{DuplicatedKeyError, DuplicatedVariableError, InvalidIndentationError, ParseError, ValueError, VariableNotDefinedError};
 
@@ -34,6 +34,18 @@ fn escape_sequences() -> HashMap<char, char> {
 type RuleResult = Result<GuraType, Box<dyn Error>>;
 type Rules = Vec<Box<dyn Fn(&mut Input) -> RuleResult>>;
 
+impl Eq for VariableValueType {}
+
+impl PartialEq for VariableValueType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (VariableValueType::String(value1), VariableValueType::String(value2)) => value1 == value2,
+            (VariableValueType::Number(value1), VariableValueType::Number(value2)) => value1.partial_cmp(value2) == Some(Ordering::Equal),
+            _ => false
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum VariableValueType {
     String(String),
@@ -42,7 +54,7 @@ pub enum VariableValueType {
 
 /* Data types to be returned by match expression methods */
 // TODO: Rename to Value
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum GuraType {
     Null,
     Indentation(usize),
@@ -58,13 +70,42 @@ pub enum GuraType {
     String(String),
     Integer(u64),
     Float(f64),
-    List(Vec<Box<GuraType>>),
+    Array(Vec<Box<GuraType>>),
     WsOrNewLine,
 }
 
 impl fmt::Display for GuraType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&dump(self))
+    }
+}
+
+
+/// Implements indexing by `&str` to easily access object members:
+impl<'a> Index<&'a str> for GuraType {
+    type Output = GuraType;
+
+    fn index(&self, index: &str) -> &GuraType {
+        match *self {
+            GuraType::Object(ref object) => &object[index],
+            _ => &GuraType::Null
+        }
+    }
+}
+
+impl Index<String> for GuraType {
+    type Output = GuraType;
+
+    fn index(&self, index: String) -> &GuraType {
+        self.index(index.deref())
+    }
+}
+
+impl<'a> Index<&'a String> for GuraType {
+    type Output = GuraType;
+
+    fn index(&self, index: &String) -> &GuraType {
+        self.index(index.deref())
     }
 }
 
@@ -204,7 +245,7 @@ fn complex_type(text: &mut Input) -> RuleResult {
 * @returns Null.
 */
 fn null(text: &mut Input) -> RuleResult {
-    keyword(text, &vec![String::from("null")])?;
+    keyword(text, &vec!["null"])?;
     Ok(GuraType::Null)
 }
 
@@ -214,7 +255,7 @@ fn null(text: &mut Input) -> RuleResult {
 * @returns Matched boolean value.
 */
 fn boolean(text: &mut Input) -> RuleResult {
-    let value = keyword(text, &vec![String::from("true"), String::from("false")])? == "true";
+    let value = keyword(text, &vec!["true", "false"])? == "true";
     Ok(GuraType::Bool(value))
 }
 
@@ -224,7 +265,7 @@ fn boolean(text: &mut Input) -> RuleResult {
  * @returns Matched string.
  */
 fn basic_string(text: &mut Input) -> RuleResult {
-    let quote = keyword(text, &vec![String::from("\"\"\""), String::from("\"")])?;
+    let quote = keyword(text, &vec!["\"\"\"", "\""])?;
 
     let is_multiline = quote == "\"\"\"";
 
@@ -239,7 +280,7 @@ fn basic_string(text: &mut Input) -> RuleResult {
     let escape_sequences_map = escape_sequences();
 
     loop {
-        let closing_quote = maybe_keyword(text, &vec![quote.clone()]);
+        let closing_quote = maybe_keyword(text, &vec![&quote]);
         if closing_quote.is_some() {
             break;
         }
@@ -408,7 +449,7 @@ fn compute_imports(
  */
 fn variable_value(text: &mut Input) -> RuleResult {
     // TODO: consider using char(text, vec![String::from("\"")])
-    keyword(text, &vec![String::from("$")])?;
+    keyword(text, &vec!["$"])?;
     match matches(text, vec![Box::new(unquoted_string)])? {
         GuraType::String(key_name) => {
             let var_value = get_variable_value(text, &key_name)?;
@@ -477,6 +518,7 @@ fn split_char_ranges(text: &mut Input, chars: &String) -> Result<Vec<String>, Va
 /// :param chars: Chars to match. If it is None, it will return the next char in text
 /// :raise: ParseError if any of the specified char (i.e. if chars != None) matched
 /// :return: Matched char
+// TODO: change to &Option<&str>
 fn char(text: &mut Input, chars: &Option<String>) -> Result<char, Box<dyn Error>> {
     // if text.pos >= text.len {
     if text.pos > text.len {
@@ -536,8 +578,7 @@ fn char(text: &mut Input, chars: &Option<String>) -> Result<char, Box<dyn Error>
 /// :param keywords: Keywords to match
 /// :raise: ParseError if any of the specified keywords matched
 /// :return: The first matched keyword
-// TODO: Change keywords to Vec<&str>
-fn keyword(text: &mut Input, keywords: &Vec<String>) -> Result<String, Box<dyn Error>> {
+fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Error>> {
     // if text.pos >= text.len {
     if text.pos > text.len {
         return Err(Box::new(ParseError::new(
@@ -558,7 +599,7 @@ fn keyword(text: &mut Input, keywords: &Vec<String>) -> Result<String, Box<dyn E
         // println!("Keyword -> {} | Text -> {:?} ({} to {})", keyword, text.text.get(low..high), low, high);
 
         if let Some(current_substring) = text.text.get(low..high) {
-            if current_substring == keyword {
+            if current_substring == *keyword {
                 text.pos += keyword.len();
                 return Ok(keyword.to_string());
             }
@@ -658,7 +699,7 @@ fn maybe_match(text: &mut Input, rules: Rules) -> Option<GuraType> {
 /// :param keywords: Keywords to match
 /// :return: Keyword if matched, None otherwise
 /// TODO: change to Vec<str>!!
-fn maybe_keyword(text: &mut Input, keywords: &Vec<String>) -> Option<String> {
+fn maybe_keyword(text: &mut Input, keywords: &Vec<&str>) -> Option<String> {
     match keyword(text, keywords) {
         Err(_) => None,
         result => result.ok(),
@@ -704,7 +745,7 @@ fn new_line(text: &mut Input) -> RuleResult {
 * @returns MatchResult indicating the presence of a comment.
 */
 fn comment(text: &mut Input) -> RuleResult {
-    keyword(text, &vec![String::from("#")])?;
+    keyword(text, &vec!["#"])?;
     while text.pos < text.len {
         // let char = text.text.chars().nth(text.pos + 1).unwrap();
         let char = text.text.chars().nth(text.pos).unwrap();
@@ -727,7 +768,7 @@ fn ws_with_indentation(text: &mut Input) -> RuleResult {
     let mut current_indentation_level = 0;
 
     while text.pos < text.len {
-        let blank = maybe_keyword(text, &vec![String::from(" "), String::from("\t")]);
+        let blank = maybe_keyword(text, &vec![" ", "\t"]);
 
         if blank.is_none() {
             // If it is not a blank or new line, returns from the method
@@ -751,7 +792,7 @@ fn ws_with_indentation(text: &mut Input) -> RuleResult {
 * Matches white spaces (blanks and tabs).
 */
 fn ws(text: &mut Input) -> RuleResult {
-    while maybe_keyword(text, &vec![String::from(" "), String::from("\t")]).is_some() {
+    while maybe_keyword(text, &vec![" ", "\t"]).is_some() {
         continue;
     }
 
@@ -766,7 +807,7 @@ fn ws(text: &mut Input) -> RuleResult {
 */
 fn quoted_string_with_var(text: &mut Input) -> RuleResult {
     // TODO: consider using char(text, vec![String::from("\"")])
-    let quote = keyword(text, &vec![String::from("\"")])?
+    let quote = keyword(text, &vec!["\""])?
         .chars()
         .nth(0)
         .unwrap();
@@ -871,7 +912,7 @@ fn get_text_with_imports(
 * @returns MatchResult with file name of imported file.
 */
 fn gura_import(text: &mut Input) -> RuleResult {
-    keyword(text, &vec![String::from("import")])?;
+    keyword(text, &vec!["import"])?;
     char(text, &Some(String::from(" ")))?;
     let string_match = matches(text, vec![Box::new(quoted_string_with_var)])?;
 
@@ -895,7 +936,7 @@ fn gura_import(text: &mut Input) -> RuleResult {
  * @returns Match result indicating that a variable has been added.
  */
 fn variable(text: &mut Input) -> RuleResult {
-    keyword(text, &vec![String::from("$")])?;
+    keyword(text, &vec!["$"])?;
     let matched_key = matches(text, vec![Box::new(key)])?;
 
     if let GuraType::String(key_value) = matched_key {
@@ -949,7 +990,7 @@ fn key(text: &mut Input) -> RuleResult {
 
     if matched_key.is_ok() {
         // TODO: try char
-        keyword(text, &vec![String::from(":")])?;
+        keyword(text, &vec![":"])?;
         matched_key
     } else {
         Err(Box::new(ParseError::new(
@@ -1124,7 +1165,7 @@ fn list(text: &mut Input) -> RuleResult {
 
     maybe_match(text, vec![Box::new(ws)]);
     // TODO: try char
-    keyword(text, &vec![String::from("[")])?;
+    keyword(text, &vec!["["])?;
     loop {
         // Discards useless lines between elements of array
         match maybe_match(text, vec![Box::new(useless_line)]) {
@@ -1141,7 +1182,7 @@ fn list(text: &mut Input) -> RuleResult {
                 maybe_match(text, vec![Box::new(ws)]);
                 maybe_match(text, vec![Box::new(new_line)]);
                 // TODO: try char()
-                if maybe_keyword(text, &vec![String::from(",")]).is_none() {
+                if maybe_keyword(text, &vec![","]).is_none() {
                     break;
                 }
             }
@@ -1151,8 +1192,8 @@ fn list(text: &mut Input) -> RuleResult {
     maybe_match(text, vec![Box::new(ws)]);
     maybe_match(text, vec![Box::new(new_line)]);
     // TODO: try char()
-    keyword(text, &vec![String::from("]")])?;
-    Ok(GuraType::List(result))
+    keyword(text, &vec!["]"])?;
+    Ok(GuraType::Array(result))
 }
 
 /**
@@ -1161,7 +1202,7 @@ fn list(text: &mut Input) -> RuleResult {
 * @returns Matched string.
 */
 fn literal_string(text: &mut Input) -> RuleResult {
-    let quote = keyword(text, &vec![String::from("'''"), String::from("'")])?;
+    let quote = keyword(text, &vec!["'''", "'"])?;
 
     let is_multiline = quote == "'''";
 
@@ -1174,7 +1215,7 @@ fn literal_string(text: &mut Input) -> RuleResult {
     let mut chars: Vec<char> = Vec::new();
 
     loop {
-        match maybe_keyword(text, &vec![String::from(quote.clone())]) {
+        match maybe_keyword(text, &vec![&quote]) {
             Some(_) => break,
             _ => {
                 let matched_char = char(text, &None)?;
@@ -1218,7 +1259,7 @@ fn object(text: &mut Input) -> RuleResult {
             _ => (), // If it's not a pair does nothing!
         }
 
-        if maybe_keyword(text, &vec![String::from("]"), String::from(",")]).is_some() {
+        if maybe_keyword(text, &vec!["]", ","]).is_some() {
             // Breaks if it is the end of a list
             text.remove_last_indentation_level();
             text.pos -= 1;
@@ -1344,7 +1385,7 @@ fn dump_content(content: &GuraType, indentation_level: usize) -> String {
         GuraType::String(str_content) => result.add_assign(&format!("'{}'\n", str_content)),
         GuraType::Integer(number) => result.add_assign(&format!("{}\n", number)),
         GuraType::Float(number) => result.add_assign(&format!("{}\n", number)),
-        GuraType::List(list) => {
+        GuraType::Array(list) => {
             result.add_assign("[");
             let joined = list.iter().join(", ");
             result.add_assign(&joined);
