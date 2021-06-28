@@ -1,6 +1,18 @@
+use crate::errors::{
+    DuplicatedKeyError, DuplicatedVariableError, InvalidIndentationError, ParseError, ValueError,
+    VariableNotDefinedError,
+};
 use itertools::Itertools;
-use std::{cmp::Ordering, collections::{HashMap, HashSet}, env, error::Error, f64::{INFINITY, NAN, NEG_INFINITY}, fmt, ops::{Add, AddAssign, Deref, Index}, usize, vec};
-use crate::errors::{DuplicatedKeyError, DuplicatedVariableError, InvalidIndentationError, ParseError, ValueError, VariableNotDefinedError};
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    env,
+    error::Error,
+    f64::{INFINITY, NAN, NEG_INFINITY},
+    fmt,
+    ops::{Add, AddAssign, Deref, Index},
+    usize, vec,
+};
 
 // Number chars
 const BASIC_NUMBERS_CHARS: &str = "0-9";
@@ -38,9 +50,13 @@ impl Eq for VariableValueType {}
 impl PartialEq for VariableValueType {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (VariableValueType::String(value1), VariableValueType::String(value2)) => value1 == value2,
-            (VariableValueType::Number(value1), VariableValueType::Number(value2)) => value1.partial_cmp(value2) == Some(Ordering::Equal),
-            _ => false
+            (VariableValueType::String(value1), VariableValueType::String(value2)) => {
+                value1 == value2
+            }
+            (VariableValueType::Number(value1), VariableValueType::Number(value2)) => {
+                value1.partial_cmp(value2) == Some(Ordering::Equal)
+            }
+            _ => false,
         }
     }
 }
@@ -79,7 +95,6 @@ impl fmt::Display for GuraType {
     }
 }
 
-
 /// Implements indexing by `&str` to easily access object members:
 impl<'a> Index<&'a str> for GuraType {
     type Output = GuraType;
@@ -87,7 +102,7 @@ impl<'a> Index<&'a str> for GuraType {
     fn index(&self, index: &str) -> &GuraType {
         match *self {
             GuraType::Object(ref object) => &object[index],
-            _ => &GuraType::Null
+            _ => &GuraType::Null,
         }
     }
 }
@@ -113,7 +128,7 @@ impl PartialEq<bool> for GuraType {
     fn eq(&self, other: &bool) -> bool {
         match self {
             &GuraType::Bool(value) => value == *other,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -122,7 +137,7 @@ impl PartialEq<isize> for GuraType {
     fn eq(&self, other: &isize) -> bool {
         match self {
             &GuraType::Integer(value) => value == *other,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -131,7 +146,7 @@ impl PartialEq<f32> for GuraType {
     fn eq(&self, other: &f32) -> bool {
         match self {
             &GuraType::Float(value) => value == *other as f64,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -140,7 +155,7 @@ impl PartialEq<f64> for GuraType {
     fn eq(&self, other: &f64) -> bool {
         match self {
             &GuraType::Float(value) => value == *other,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -149,7 +164,7 @@ impl PartialEq<&str> for GuraType {
     fn eq(&self, other: &&str) -> bool {
         match self {
             GuraType::String(value) => value == *other,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -158,7 +173,7 @@ impl PartialEq<String> for GuraType {
     fn eq(&self, other: &String) -> bool {
         match self {
             GuraType::String(value) => *value == *other,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -202,8 +217,8 @@ impl Input {
     }
 
     /**
-    * Removes, if exists, the last indentation level.
-    */
+     * Removes, if exists, the last indentation level.
+     */
     fn remove_last_indentation_level(&mut self) {
         if self.indentation_levels.len() > 0 {
             self.indentation_levels.pop();
@@ -397,9 +412,7 @@ fn basic_string(text: &mut Input) -> RuleResult {
     }
 
     let final_string = chars.iter().cloned().collect::<String>();
-    Ok(GuraType::String(
-        final_string,
-    ))
+    Ok(GuraType::String(final_string))
 }
 
 /**
@@ -561,7 +574,7 @@ fn split_char_ranges(text: &mut Input, chars: &String) -> Result<Vec<String>, Va
             index += 1;
         }
     }
-    
+
     text.cache.insert(chars.to_string(), result.clone());
     Ok(result)
 }
@@ -738,7 +751,7 @@ fn maybe_char(text: &mut Input, chars: &Option<String>) -> Result<Option<char>, 
             } else {
                 Err(e)
             }
-        },
+        }
         result => Ok(result.ok()),
     }
 }
@@ -754,7 +767,7 @@ fn maybe_match(text: &mut Input, rules: Rules) -> Result<Option<GuraType>, Box<d
             } else {
                 Err(e)
             }
-        },
+        }
         result => Ok(result.ok()),
     }
 }
@@ -771,7 +784,7 @@ fn maybe_keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<Option<String
             } else {
                 Err(e)
             }
-        },
+        }
         result => Ok(result.ok()),
     }
 }
@@ -788,7 +801,7 @@ pub fn parse(text: &String) -> RuleResult {
     text_parser.restart_params(text);
     let result = start(text_parser)?;
     assert_end(text_parser)?;
-    
+
     if let GuraType::ObjectWithWs(values, _) = result {
         Ok(GuraType::Object(values))
     } else {
@@ -876,10 +889,7 @@ fn ws(text: &mut Input) -> RuleResult {
 */
 fn quoted_string_with_var(text: &mut Input) -> RuleResult {
     // TODO: consider using char(text, vec![String::from("\"")])
-    let quote = keyword(text, &vec!["\""])?
-        .chars()
-        .nth(0)
-        .unwrap();
+    let quote = keyword(text, &vec!["\""])?.chars().nth(0).unwrap();
     let mut chars: Vec<char> = Vec::new();
 
     loop {
@@ -914,9 +924,7 @@ fn quoted_string_with_var(text: &mut Input) -> RuleResult {
     }
 
     let final_string = chars.iter().cloned().collect::<String>();
-    Ok(GuraType::String(
-        final_string,
-    ))
+    Ok(GuraType::String(final_string))
 }
 
 /**
@@ -1112,9 +1120,7 @@ fn unquoted_string(text: &mut Input) -> RuleResult {
         .trim_end()
         .to_string();
 
-    Ok(GuraType::String(
-        trimmed_str,
-    ))
+    Ok(GuraType::String(trimmed_str))
 }
 
 /**
@@ -1170,11 +1176,9 @@ fn number(text: &mut Input) -> RuleResult {
                 "0o" => base = 8,
                 _ => base = 2,
             };
-    
+
             let int_value = isize::from_str_radix(&without_prefix, base).unwrap();
-            return Ok(GuraType::Integer(
-                int_value,
-            ));
+            return Ok(GuraType::Integer(int_value));
         }
     }
 
@@ -1189,13 +1193,11 @@ fn number(text: &mut Input) -> RuleResult {
     let last_three_chars = last_three_chars.as_str();
     match last_three_chars {
         "inf" => {
-            return Ok(GuraType::Float(
-                if result.chars().next().unwrap() == '-' {
-                    NEG_INFINITY
-                } else {
-                    INFINITY
-                },
-            ));
+            return Ok(GuraType::Float(if result.chars().next().unwrap() == '-' {
+                NEG_INFINITY
+            } else {
+                INFINITY
+            }));
         }
         "nan" => {
             return Ok(GuraType::Float(NAN));
@@ -1294,9 +1296,7 @@ fn literal_string(text: &mut Input) -> RuleResult {
     }
 
     let final_string = chars.iter().cloned().collect::<String>();
-    Ok(GuraType::String(
-        final_string,
-    ))
+    Ok(GuraType::String(final_string))
 }
 
 /**
@@ -1393,7 +1393,7 @@ fn pair(text: &mut Input) -> RuleResult {
                         text.pos,
                         text.line,
                         String::from("Invalid pair"),
-                    )))
+                    )));
                 }
                 GuraType::ObjectWithWs(object_values, indentation_level) => {
                     if indentation_level == current_indentation_level {
@@ -1447,9 +1447,14 @@ fn dump_content(content: &GuraType, indentation_level: usize) -> String {
             }
 
             for (key, value) in values {
-                result.add_assign(&format!("{}{}: {}", indentation, key, dump_content(value, indentation_level + 1)));
+                result.add_assign(&format!(
+                    "{}{}: {}",
+                    indentation,
+                    key,
+                    dump_content(value, indentation_level + 1)
+                ));
             }
-        },
+        }
         GuraType::Bool(bool_value) => result.add_assign(&bool_value.to_string().add("\n")),
         GuraType::String(str_content) => result.add_assign(&format!("'{}'\n", str_content)),
         GuraType::Integer(number) => result.add_assign(&format!("{}\n", number)),
@@ -1460,8 +1465,8 @@ fn dump_content(content: &GuraType, indentation_level: usize) -> String {
             let joined = array.iter().join(", ");
             result.add_assign(&joined);
             result.add_assign("]\n");
-        },
-        _ => ()
+        }
+        _ => (),
     };
     result
 }
@@ -1472,6 +1477,6 @@ fn dump_content(content: &GuraType, indentation_level: usize) -> String {
  * @param data - Object to stringify.
  * @returns String with the data in Gura format.
  */
-pub fn dump (content: &GuraType) -> String {
+pub fn dump(content: &GuraType) -> String {
     dump_content(content, 0)
 }
