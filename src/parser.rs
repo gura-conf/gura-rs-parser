@@ -108,6 +108,61 @@ impl<'a> Index<&'a String> for GuraType {
     }
 }
 
+/// Implements Eq with primitive types
+impl PartialEq<bool> for GuraType {
+    fn eq(&self, other: &bool) -> bool {
+        match self {
+            &GuraType::Bool(value) => value == *other,
+            _ => false
+        }
+    }
+}
+
+impl PartialEq<isize> for GuraType {
+    fn eq(&self, other: &isize) -> bool {
+        match self {
+            &GuraType::Integer(value) => value == *other,
+            _ => false
+        }
+    }
+}
+
+impl PartialEq<f32> for GuraType {
+    fn eq(&self, other: &f32) -> bool {
+        match self {
+            &GuraType::Float(value) => value == *other as f64,
+            _ => false
+        }
+    }
+}
+
+impl PartialEq<f64> for GuraType {
+    fn eq(&self, other: &f64) -> bool {
+        match self {
+            &GuraType::Float(value) => value == *other,
+            _ => false
+        }
+    }
+}
+
+impl PartialEq<&str> for GuraType {
+    fn eq(&self, other: &&str) -> bool {
+        match self {
+            GuraType::String(value) => value == *other,
+            _ => false
+        }
+    }
+}
+
+impl PartialEq<String> for GuraType {
+    fn eq(&self, other: &String) -> bool {
+        match self {
+            GuraType::String(value) => *value == *other,
+            _ => false
+        }
+    }
+}
+
 /// Struct to handle user Input internally
 struct Input {
     text: String,
