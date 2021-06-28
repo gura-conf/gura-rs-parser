@@ -230,7 +230,7 @@ fn start(text: &mut Input) -> RuleResult {
  */
 
 fn any_type(text: &mut Input) -> RuleResult {
-    let result = maybe_match(text, vec![Box::new(primitive_type)]);
+    let result = maybe_match(text, vec![Box::new(primitive_type)])?;
 
     if let Some(result) = result {
         Ok(result)
@@ -245,7 +245,7 @@ fn any_type(text: &mut Input) -> RuleResult {
  * @returns The corresponding matched value.
  */
 fn primitive_type(text: &mut Input) -> RuleResult {
-    maybe_match(text, vec![Box::new(ws)]);
+    maybe_match(text, vec![Box::new(ws)])?;
     matches(
         text,
         vec![
@@ -267,9 +267,9 @@ fn primitive_type(text: &mut Input) -> RuleResult {
 */
 fn useless_line(text: &mut Input) -> RuleResult {
     matches(text, vec![Box::new(ws)])?;
-    let comment = maybe_match(text, vec![Box::new(comment)]);
+    let comment = maybe_match(text, vec![Box::new(comment)])?;
     let initial_line = text.line;
-    maybe_match(text, vec![Box::new(new_line)]);
+    maybe_match(text, vec![Box::new(new_line)])?;
     let is_new_line = (text.line - initial_line) == 1;
 
     if comment.is_none() && !is_new_line {
@@ -326,7 +326,7 @@ fn basic_string(text: &mut Input) -> RuleResult {
     // NOTE: A newline immediately following the opening delimiter will be trimmed.All other whitespace and
     // newline characters remain intact.
     if is_multiline {
-        maybe_char(text, &Some(String::from("\n")));
+        maybe_char(text, &Some(String::from("\n")))?;
     }
 
     let mut chars: Vec<char> = Vec::new();
@@ -334,7 +334,7 @@ fn basic_string(text: &mut Input) -> RuleResult {
     let escape_sequences_map = escape_sequences();
 
     loop {
-        let closing_quote = maybe_keyword(text, &vec![&quote]);
+        let closing_quote = maybe_keyword(text, &vec![&quote])?;
         if closing_quote.is_some() {
             break;
         }
@@ -382,7 +382,7 @@ fn basic_string(text: &mut Input) -> RuleResult {
         } else {
             // Computes variables values in string
             if current_char == '$' {
-                let var_name = get_var_name(text);
+                let var_name = get_var_name(text)?;
                 let var_value_str: String = match get_variable_value(text, &var_name)? {
                     VariableValueType::Number(number) => number.to_string(),
                     VariableValueType::String(value) => value,
@@ -407,16 +407,14 @@ fn basic_string(text: &mut Input) -> RuleResult {
  *
  * @returns Variable name.
  */
-fn get_var_name(text: &mut Input) -> String {
+fn get_var_name(text: &mut Input) -> Result<String, Box<dyn Error>> {
     let key_acceptable_chars = Some(String::from(KEY_ACCEPTABLE_CHARS));
     let mut var_name = String::new();
-    let mut var_name_char = maybe_char(text, &key_acceptable_chars);
-    while var_name_char.is_some() {
-        var_name.push(var_name_char.unwrap());
-        var_name_char = maybe_char(text, &key_acceptable_chars)
+    while let Some(var_name_char) = maybe_char(text, &key_acceptable_chars)? {
+        var_name.push(var_name_char);
     }
 
-    var_name
+    Ok(var_name)
 }
 
 /**
@@ -732,20 +730,32 @@ fn matches(text: &mut Input, rules: Rules) -> RuleResult {
 /// Like char() but returns None instead of raising ParseError
 /// :param chars: Chars to match. If it is None, it will return the next char in text
 /// :return: Char if matched, None otherwise
-fn maybe_char(text: &mut Input, chars: &Option<String>) -> Option<char> {
+fn maybe_char(text: &mut Input, chars: &Option<String>) -> Result<Option<char>, Box<dyn Error>> {
     match char(text, chars) {
-        Err(_) => None,
-        result => result.ok(),
+        Err(e) => {
+            if e.downcast_ref::<ParseError>().is_some() {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        },
+        result => Ok(result.ok()),
     }
 }
 
 /// Like match() but returns None instead of raising ParseError
 /// :param rules: Rules to match
 /// :return: Rule result if matched, None otherwise
-fn maybe_match(text: &mut Input, rules: Rules) -> Option<GuraType> {
+fn maybe_match(text: &mut Input, rules: Rules) -> Result<Option<GuraType>, Box<dyn Error>> {
     match matches(text, rules) {
-        Err(_) => None,
-        result => result.ok(),
+        Err(e) => {
+            if e.downcast_ref::<ParseError>().is_some() {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        },
+        result => Ok(result.ok()),
     }
 }
 
@@ -753,10 +763,16 @@ fn maybe_match(text: &mut Input, rules: Rules) -> Option<GuraType> {
 /// :param keywords: Keywords to match
 /// :return: Keyword if matched, None otherwise
 /// TODO: change to Vec<str>!!
-fn maybe_keyword(text: &mut Input, keywords: &Vec<&str>) -> Option<String> {
+fn maybe_keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<Option<String>, Box<dyn Error>> {
     match keyword(text, keywords) {
-        Err(_) => None,
-        result => result.ok(),
+        Err(e) => {
+            if e.downcast_ref::<ParseError>().is_some() {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        },
+        result => Ok(result.ok()),
     }
 }
 
@@ -822,21 +838,20 @@ fn ws_with_indentation(text: &mut Input) -> RuleResult {
     let mut current_indentation_level = 0;
 
     while text.pos < text.len {
-        let blank = maybe_keyword(text, &vec![" ", "\t"]);
-
-        if blank.is_none() {
+        match maybe_keyword(text, &vec![" ", "\t"])? {
             // If it is not a blank or new line, returns from the method
-            break;
-        }
+            None => break,
+            Some(blank) => {
+                // Tabs are not allowed
+                if blank == "\t" {
+                    return Err(Box::new(InvalidIndentationError::new(String::from(
+                        "Tabs are not allowed to define indentation blocks",
+                    ))));
+                }
 
-        // Tabs are not allowed
-        if blank.unwrap() == "\t" {
-            return Err(Box::new(InvalidIndentationError::new(String::from(
-                "Tabs are not allowed to define indentation blocks",
-            ))));
+                current_indentation_level += 1
+            }
         }
-
-        current_indentation_level += 1
     }
 
     Ok(GuraType::Indentation(current_indentation_level))
@@ -846,7 +861,7 @@ fn ws_with_indentation(text: &mut Input) -> RuleResult {
 * Matches white spaces (blanks and tabs).
 */
 fn ws(text: &mut Input) -> RuleResult {
-    while maybe_keyword(text, &vec![" ", "\t"]).is_some() {
+    while maybe_keyword(text, &vec![" ", "\t"])?.is_some() {
         continue;
     }
 
@@ -876,7 +891,7 @@ fn quoted_string_with_var(text: &mut Input) -> RuleResult {
 
         // Computes variables values in string
         if current_char == '$' {
-            let var_name = get_var_name(text);
+            let var_name = get_var_name(text)?;
             match get_variable_value(text, &var_name) {
                 Ok(some_var) => {
                     let mut var_chars: Vec<char> = match some_var {
@@ -909,7 +924,7 @@ fn quoted_string_with_var(text: &mut Input) -> RuleResult {
 */
 fn eat_ws_and_new_lines(text: &mut Input) {
     let ws_and_new_lines_chars = Some(String::from(" \x0c\x0b\r\n\t"));
-    while maybe_char(text, &ws_and_new_lines_chars).is_some() {
+    while let Ok(Some(_)) = maybe_char(text, &ws_and_new_lines_chars) {
         continue;
     }
 }
@@ -972,7 +987,7 @@ fn gura_import(text: &mut Input) -> RuleResult {
 
     if let GuraType::Import(file_to_import) = string_match {
         matches(text, vec![Box::new(ws)])?;
-        maybe_match(text, vec![Box::new(new_line)]);
+        maybe_match(text, vec![Box::new(new_line)])?;
         Ok(GuraType::Import(file_to_import))
     } else {
         Err(Box::new(ParseError::new(
@@ -994,7 +1009,7 @@ fn variable(text: &mut Input) -> RuleResult {
     let matched_key = matches(text, vec![Box::new(key)])?;
 
     if let GuraType::String(key_value) = matched_key {
-        maybe_match(text, vec![Box::new(ws)]);
+        maybe_match(text, vec![Box::new(ws)])?;
 
         let match_result = matches(
             text,
@@ -1083,7 +1098,7 @@ fn unquoted_string(text: &mut Input) -> RuleResult {
     let mut chars = vec![char(text, &key_acceptable_chars)?];
 
     loop {
-        let matched_char = maybe_char(text, &key_acceptable_chars);
+        let matched_char = maybe_char(text, &key_acceptable_chars)?;
         match matched_char {
             Some(a_char) => chars.push(a_char),
             None => break,
@@ -1124,7 +1139,7 @@ fn number(text: &mut Input) -> RuleResult {
     let mut chars = vec![char(text, &acceptable_number_chars)?];
 
     loop {
-        let matched_char = maybe_char(text, &acceptable_number_chars);
+        let matched_char = maybe_char(text, &acceptable_number_chars)?;
         match matched_char {
             Some(a_char) => {
                 if String::from("Ee.").contains(a_char) {
@@ -1217,34 +1232,34 @@ fn number(text: &mut Input) -> RuleResult {
 fn list(text: &mut Input) -> RuleResult {
     let mut result: Vec<Box<GuraType>> = Vec::new();
 
-    maybe_match(text, vec![Box::new(ws)]);
+    maybe_match(text, vec![Box::new(ws)])?;
     // TODO: try char
     keyword(text, &vec!["["])?;
     loop {
         // Discards useless lines between elements of array
-        match maybe_match(text, vec![Box::new(useless_line)]) {
+        match maybe_match(text, vec![Box::new(useless_line)])? {
             Some(_) => continue,
             _ => {
                 let item: Box<GuraType>;
-                match maybe_match(text, vec![Box::new(any_type)]) {
+                match maybe_match(text, vec![Box::new(any_type)])? {
                     None => break,
                     Some(value) => item = Box::new(value),
                 }
 
                 result.push(item);
 
-                maybe_match(text, vec![Box::new(ws)]);
-                maybe_match(text, vec![Box::new(new_line)]);
+                maybe_match(text, vec![Box::new(ws)])?;
+                maybe_match(text, vec![Box::new(new_line)])?;
                 // TODO: try char()
-                if maybe_keyword(text, &vec![","]).is_none() {
+                if maybe_keyword(text, &vec![","])?.is_none() {
                     break;
                 }
             }
         }
     }
 
-    maybe_match(text, vec![Box::new(ws)]);
-    maybe_match(text, vec![Box::new(new_line)]);
+    maybe_match(text, vec![Box::new(ws)])?;
+    maybe_match(text, vec![Box::new(new_line)])?;
     // TODO: try char()
     keyword(text, &vec!["]"])?;
     Ok(GuraType::Array(result))
@@ -1263,13 +1278,13 @@ fn literal_string(text: &mut Input) -> RuleResult {
     // NOTE: A newline immediately following the opening delimiter will be trimmed.All other whitespace and
     // newline characters remain intact.
     if is_multiline {
-        maybe_char(text, &Some(String::from("\n")));
+        maybe_char(text, &Some(String::from("\n")))?;
     }
 
     let mut chars: Vec<char> = Vec::new();
 
     loop {
-        match maybe_keyword(text, &vec![&quote]) {
+        match maybe_keyword(text, &vec![&quote])? {
             Some(_) => break,
             _ => {
                 let matched_char = char(text, &None)?;
@@ -1297,7 +1312,7 @@ fn object(text: &mut Input) -> RuleResult {
         match maybe_match(
             text,
             vec![Box::new(variable), Box::new(pair), Box::new(useless_line)],
-        ) {
+        )? {
             None => break,
             Some(GuraType::Pair(key, value, indentation)) => {
                 if result.contains_key(&key) {
@@ -1313,7 +1328,7 @@ fn object(text: &mut Input) -> RuleResult {
             _ => (), // If it's not a pair does nothing!
         }
 
-        if maybe_keyword(text, &vec!["]", ","]).is_some() {
+        if maybe_keyword(text, &vec!["]", ","])?.is_some() {
             // Breaks if it is the end of a list
             text.remove_last_indentation_level();
             text.pos -= 1;
@@ -1339,8 +1354,8 @@ fn pair(text: &mut Input) -> RuleResult {
         let matched_key = matches(text, vec![Box::new(key)])?;
 
         if let GuraType::String(key_value) = matched_key {
-            maybe_match(text, vec![Box::new(ws)]);
-            maybe_match(text, vec![Box::new(new_line)]);
+            maybe_match(text, vec![Box::new(ws)])?;
+            maybe_match(text, vec![Box::new(new_line)])?;
 
             // Check indentation
             let last_indentation_block = get_last_indentation_level(text);
@@ -1399,7 +1414,7 @@ fn pair(text: &mut Input) -> RuleResult {
                 }
                 _ => (),
             }
-            maybe_match(text, vec![Box::new(new_line)]);
+            maybe_match(text, vec![Box::new(new_line)])?;
 
             Ok(GuraType::Pair(key_value, result, current_indentation_level))
         } else {
