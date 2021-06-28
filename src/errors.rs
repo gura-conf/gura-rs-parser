@@ -1,5 +1,28 @@
 use std::{error::Error, fmt};
 
+macro_rules! gura_error {
+    ($error_name:ident) => {
+        #[derive(Debug, Clone)]
+        pub struct $error_name {
+            msg: String,
+        }
+
+        impl $error_name {
+            pub fn new(msg: String) -> Self {
+                $error_name { msg }
+            }
+        }
+
+        impl fmt::Display for $error_name {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "{}", self.msg)
+            }
+        }
+
+        impl Error for $error_name {}
+    };
+}
+
 // TODO: Refactor using macros
 
 // ParseError
@@ -28,92 +51,6 @@ impl fmt::Display for ParseError {
     }
 }
 
-
-#[derive(Debug, Clone)]
-pub struct VariableNotDefinedError {
-	msg: String,
-}
-
-impl VariableNotDefinedError {
-	pub fn new(msg: String) -> Self {
-		VariableNotDefinedError {
-			msg,
-		}
-	}
-}
-
-impl fmt::Display for VariableNotDefinedError {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", self.msg)
-  }
-}
-
-impl Error for VariableNotDefinedError {}
-
-#[derive(Debug, Clone)]
-pub struct InvalidIndentationError {
-	msg: String,
-}
-
-impl InvalidIndentationError {
-	pub fn new(msg: String) -> Self {
-		InvalidIndentationError {
-			msg,
-		}
-	}
-}
-
-impl fmt::Display for InvalidIndentationError {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", self.msg)
-  }
-}
-
-impl Error for InvalidIndentationError {}
-
-#[derive(Debug, Clone)]
-pub struct DuplicatedVariableError {
-	msg: String,
-}
-
-impl DuplicatedVariableError {
-	pub fn new(msg: String) -> Self {
-		DuplicatedVariableError {
-			msg,
-		}
-	}
-}
-
-impl fmt::Display for DuplicatedVariableError {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", self.msg)
-  }
-}
-
-impl Error for DuplicatedVariableError {}
-
-#[derive(Debug, Clone)]
-pub struct DuplicatedKeyError {
-	msg: String,
-}
-
-impl DuplicatedKeyError {
-	pub fn new(msg: String) -> Self {
-		DuplicatedKeyError {
-			msg,
-		}
-	}
-}
-
-impl fmt::Display for DuplicatedKeyError {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", self.msg)
-  }
-}
-
-impl Error for DuplicatedKeyError {}
-
-
 // ValueError
 #[derive(Debug)]
 pub struct ValueError {}
@@ -125,3 +62,11 @@ impl fmt::Display for ValueError {
         write!(f, "Bad character range")
     }
 }
+
+gura_error!(VariableNotDefinedError);
+
+gura_error!(InvalidIndentationError);
+
+gura_error!(DuplicatedVariableError);
+
+gura_error!(DuplicatedKeyError);
