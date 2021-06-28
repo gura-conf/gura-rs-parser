@@ -1,6 +1,5 @@
 use itertools::Itertools;
 use std::{cmp::Ordering, collections::{HashMap, HashSet}, env, error::Error, f64::{INFINITY, NAN, NEG_INFINITY}, fmt, ops::{Add, AddAssign, Deref, Index}, usize, vec};
-
 use crate::errors::{DuplicatedKeyError, DuplicatedVariableError, InvalidIndentationError, ParseError, ValueError, VariableNotDefinedError};
 
 // Number chars
@@ -68,7 +67,7 @@ pub enum GuraType {
     Object(HashMap<String, Box<GuraType>>),
     Bool(bool),
     String(String),
-    Integer(u64),
+    Integer(isize),
     Float(f64),
     Array(Vec<Box<GuraType>>),
     WsOrNewLine,
@@ -1092,21 +1091,21 @@ fn number(text: &mut Input) -> RuleResult {
         .replace("_", "");
 
     // Checks hexadecimal, octal and binary format
-    let prefix = result[0..2].to_string();
-    let prefix = prefix.as_str();
-    if vec!["0x", "0o", "0b"].contains(&prefix) {
-        let base: u32;
-        let without_prefix = result[2..].to_string();
-        match prefix {
-            "0x" => base = 16,
-            "0o" => base = 8,
-            _ => base = 2,
-        };
-
-        let int_value = u64::from_str_radix(&without_prefix, base).unwrap();
-        return Ok(GuraType::Integer(
-            int_value,
-        ));
+    if let Some(prefix) = result.get(0..2) {
+        if vec!["0x", "0o", "0b"].contains(&prefix) {
+            let base: u32;
+            let without_prefix = result[2..].to_string();
+            match prefix {
+                "0x" => base = 16,
+                "0o" => base = 8,
+                _ => base = 2,
+            };
+    
+            let int_value = isize::from_str_radix(&without_prefix, base).unwrap();
+            return Ok(GuraType::Integer(
+                int_value,
+            ));
+        }
     }
 
     // Checks inf or NaN
@@ -1134,7 +1133,7 @@ fn number(text: &mut Input) -> RuleResult {
         _ => {
             // It's a normal number
             if number_type == NumberType::Integer {
-                if let Ok(value) = result.parse::<u64>() {
+                if let Ok(value) = result.parse::<isize>() {
                     return Ok(GuraType::Integer(value));
                 }
             } else {
@@ -1385,9 +1384,10 @@ fn dump_content(content: &GuraType, indentation_level: usize) -> String {
         GuraType::String(str_content) => result.add_assign(&format!("'{}'\n", str_content)),
         GuraType::Integer(number) => result.add_assign(&format!("{}\n", number)),
         GuraType::Float(number) => result.add_assign(&format!("{}\n", number)),
-        GuraType::Array(list) => {
+        GuraType::Array(array) => {
+            // FIXME: prints array in an ugly way
             result.add_assign("[");
-            let joined = list.iter().join(", ");
+            let joined = array.iter().join(", ");
             result.add_assign(&joined);
             result.add_assign("]\n");
         },
