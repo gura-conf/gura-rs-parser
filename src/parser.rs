@@ -124,12 +124,19 @@ impl<'a> Index<&'a String> for GuraType {
 }
 
 /// Implements Eq with primitive types
+// TODO: refactor with macros
 impl PartialEq<bool> for GuraType {
     fn eq(&self, other: &bool) -> bool {
         match self {
             &GuraType::Bool(value) => value == *other,
             _ => false,
         }
+    }
+}
+
+impl PartialEq<GuraType> for bool {
+    fn eq(&self, other: &GuraType) -> bool {
+        other.eq(self)
     }
 }
 
@@ -142,12 +149,24 @@ impl PartialEq<isize> for GuraType {
     }
 }
 
+impl PartialEq<GuraType> for isize {
+    fn eq(&self, other: &GuraType) -> bool {
+        other.eq(self)
+    }
+}
+
 impl PartialEq<f32> for GuraType {
     fn eq(&self, other: &f32) -> bool {
         match self {
             &GuraType::Float(value) => value == *other as f64,
             _ => false,
         }
+    }
+}
+
+impl PartialEq<GuraType> for f32 {
+    fn eq(&self, other: &GuraType) -> bool {
+        other.eq(self)
     }
 }
 
@@ -160,6 +179,12 @@ impl PartialEq<f64> for GuraType {
     }
 }
 
+impl PartialEq<GuraType> for f64 {
+    fn eq(&self, other: &GuraType) -> bool {
+        other.eq(self)
+    }
+}
+
 impl PartialEq<&str> for GuraType {
     fn eq(&self, other: &&str) -> bool {
         match self {
@@ -169,12 +194,24 @@ impl PartialEq<&str> for GuraType {
     }
 }
 
+impl PartialEq<GuraType> for &str {
+    fn eq(&self, other: &GuraType) -> bool {
+        other.eq(self)
+    }
+}
+
 impl PartialEq<String> for GuraType {
     fn eq(&self, other: &String) -> bool {
         match self {
             GuraType::String(value) => *value == *other,
             _ => false,
         }
+    }
+}
+
+impl PartialEq<GuraType> for String {
+    fn eq(&self, other: &GuraType) -> bool {
+        other.eq(self)
     }
 }
 
