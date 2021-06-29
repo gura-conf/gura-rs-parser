@@ -552,6 +552,8 @@ fn compute_imports(
 fn variable_value(text: &mut Input) -> RuleResult {
     // TODO: consider using char(text, vec![String::from("\"")])
     keyword(text, &vec!["$"])?;
+
+    // TODO: refactor with if let
     match matches(text, vec![Box::new(unquoted_string)])? {
         GuraType::String(key_name) => {
             let var_value = get_variable_value(text, &key_name)?;
@@ -727,7 +729,7 @@ fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Err
 /// :raise: ParseError if any of the specified rules matched
 /// :return: The first matched rule method's result
 fn matches(text: &mut Input, rules: Rules) -> RuleResult {
-    let mut last_error_pos: usize = 0;
+    let mut last_error_pos: Option<usize> = None;
     let mut last_exception: Option<Box<dyn Error>> = None;
     // let last_error_rules: Vec<Box<dyn Error>> = Vec::with_capacity(rules.len());
 
@@ -739,8 +741,8 @@ fn matches(text: &mut Input, rules: Rules) -> RuleResult {
                 if let Some(err) = e.downcast_ref::<ParseError>() {
                     text.pos = initial_pos;
 
-                    if err.pos > last_error_pos {
-                        last_error_pos = err.pos;
+                    if last_error_pos.is_none() || err.pos > last_error_pos.unwrap() {
+                        last_error_pos = Some(err.pos);
                         last_exception = Some(e);
                         // last_error_rules.clear();
                         // last_error_rules.push(rule.)
