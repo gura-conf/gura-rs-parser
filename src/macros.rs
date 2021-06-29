@@ -30,7 +30,7 @@ impl Attribute for String {
 }
 
 /// Helper macro for creating instances of `GuraType::Array`.
-// TODO: add example
+// TODO: add example and make private
 #[macro_export]
 macro_rules! array {
     [] => ($crate::GuraType::Array(Vec::new()));
@@ -84,6 +84,7 @@ macro_rules! array {
 #[macro_export]
 /// Helper crate for converting types into `GuraType`. It's used
 /// internally by the `object!` and `array!` macros.
+// TODO: make private
 macro_rules! value {
     ( null ) => { $crate::parser::GuraType::Null };
     ( [$( $token:tt )*] ) => {

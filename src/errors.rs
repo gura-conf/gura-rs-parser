@@ -1,30 +1,5 @@
 use std::{error::Error, fmt};
 
-macro_rules! gura_error {
-    ($error_name:ident) => {
-        #[derive(Debug, Clone)]
-        pub struct $error_name {
-            msg: String,
-        }
-
-        impl $error_name {
-            pub fn new(msg: String) -> Self {
-                $error_name { msg }
-            }
-        }
-
-        impl fmt::Display for $error_name {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "{}", self.msg)
-            }
-        }
-
-        impl Error for $error_name {}
-    };
-}
-
-// TODO: Refactor using macros
-
 // ParseError
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -63,6 +38,31 @@ impl fmt::Display for ValueError {
     }
 }
 
+/// Defines Gura error with Display method
+macro_rules! gura_error {
+    ($error_name:ident) => {
+        #[derive(Debug, Clone)]
+        pub struct $error_name {
+            msg: String,
+        }
+
+        impl $error_name {
+            pub fn new(msg: String) -> Self {
+                $error_name { msg }
+            }
+        }
+
+        impl fmt::Display for $error_name {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "{}", self.msg)
+            }
+        }
+
+        impl Error for $error_name {}
+    };
+}
+
+// Define extra common errors
 gura_error!(VariableNotDefinedError);
 
 gura_error!(InvalidIndentationError);
