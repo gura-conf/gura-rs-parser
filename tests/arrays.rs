@@ -71,9 +71,11 @@ fn test_with_comments() {
 /// Tests issue https://github.com/gura-conf/gura/issues/1
 #[test]
 fn test_array_in_object() {
-    let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "array_in_object.ura").unwrap();
+    let parsed_data =
+        common::get_file_content_parsed(PARENT_FOLDER, "array_in_object.ura").unwrap();
     assert_eq!(parsed_data, get_expected_inside_object());
     let parsed_data =
-        common::get_file_content_parsed(PARENT_FOLDER, "array_in_object_trailing_comma.ura").unwrap();
+        common::get_file_content_parsed(PARENT_FOLDER, "array_in_object_trailing_comma.ura")
+            .unwrap();
     assert_eq!(parsed_data, get_expected_inside_object());
 }

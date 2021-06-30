@@ -107,6 +107,7 @@ fn test_in_the_middle_object() {
 #[test]
 /// Tests with comments or blank lines in the middle of valid complex object
 fn test_in_the_middle_object_complex() {
-    let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "in_the_middle_object_complex.ura").unwrap();
+    let parsed_data =
+        common::get_file_content_parsed(PARENT_FOLDER, "in_the_middle_object_complex.ura").unwrap();
     assert_eq!(parsed_data, get_expected_object_complex());
 }

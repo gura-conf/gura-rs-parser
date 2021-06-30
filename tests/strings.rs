@@ -1,6 +1,10 @@
 use std::env;
 
-use gura_rs::{errors::VariableNotDefinedError, object, parser::{GuraType, parse}};
+use gura_rs::{
+    errors::VariableNotDefinedError,
+    object,
+    parser::{parse, GuraType},
+};
 mod common;
 
 const ESCAPED_VALUE: &str = "$name is cool";
@@ -70,7 +74,8 @@ fn test_basic_strings() {
 fn test_multiline_basic_strings() {
     let env_var_name = "env_var_value";
     env::set_var(env_var_name, "Roses");
-    let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "multiline_basic.ura").unwrap();
+    let parsed_data =
+        common::get_file_content_parsed(PARENT_FOLDER, "multiline_basic.ura").unwrap();
     env::remove_var(env_var_name);
     assert_eq!(parsed_data, get_expected_multiline_basic());
 }
@@ -79,7 +84,10 @@ fn test_multiline_basic_strings() {
 /// Tests errors in basic strings
 fn test_basic_strings_errors() {
     let parsed_data = parse(&"test: \"$false_var\"".to_string());
-    assert!(parsed_data.unwrap_err().downcast_ref::<VariableNotDefinedError>().is_some());
+    assert!(parsed_data
+        .unwrap_err()
+        .downcast_ref::<VariableNotDefinedError>()
+        .is_some());
 }
 
 #[test]
@@ -92,6 +100,7 @@ fn test_literal_strings() {
 #[test]
 /// Tests multiline literal strings
 fn test_multiline_literal_strings() {
-    let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "multiline_literal.ura").unwrap();
+    let parsed_data =
+        common::get_file_content_parsed(PARENT_FOLDER, "multiline_literal.ura").unwrap();
     assert_eq!(parsed_data, get_expected_multiline_literal());
 }
