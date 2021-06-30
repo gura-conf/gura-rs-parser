@@ -3,6 +3,7 @@ use crate::errors::{
     VariableNotDefinedError,
 };
 use itertools::Itertools;
+use std::collections::hash_map::{Iter, IterMut};
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
@@ -216,6 +217,22 @@ impl PartialEq<String> for GuraType {
 impl PartialEq<GuraType> for String {
     fn eq(&self, other: &GuraType) -> bool {
         other.eq(self)
+    }
+}
+
+impl GuraType {
+    pub fn iter(&self) -> Result<Iter<'_, String, Box<GuraType>>, &str> {
+        match self {
+            GuraType::Object(hash_map) => Ok(hash_map.iter()),
+            _ => Err("This struct is not an object"),
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> Result<IterMut<'_, String, Box<GuraType>>, &str> {
+        match self {
+            GuraType::Object(hash_map) => Ok(hash_map.iter_mut()),
+            _ => Err("This struct is not an object"),
+        }
     }
 }
 
@@ -440,7 +457,7 @@ fn basic_string(text: &mut Input) -> RuleResult {
             if current_char == '$' {
                 let var_name = get_var_name(text)?;
                 let var_value_str: String = match get_variable_value(text, &var_name)? {
-                    VariableValueType::Integer(number)  => number.to_string(),
+                    VariableValueType::Integer(number) => number.to_string(),
                     VariableValueType::Float(number) => number.to_string(),
                     VariableValueType::String(value) => value,
                 };
@@ -997,10 +1014,10 @@ fn get_variable_value(text: &mut Input, key: &String) -> Result<VariableValueTyp
         Some(ref value) => match value {
             VariableValueType::Integer(number_value) => {
                 return Ok(VariableValueType::Integer(*number_value))
-            },
+            }
             VariableValueType::Float(number_value) => {
                 return Ok(VariableValueType::Float(*number_value))
-            },
+            }
             VariableValueType::String(str_value) => {
                 return Ok(VariableValueType::String(str_value.clone()))
             }
