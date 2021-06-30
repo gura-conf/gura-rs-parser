@@ -70,3 +70,7 @@ gura_error!(InvalidIndentationError);
 gura_error!(DuplicatedVariableError);
 
 gura_error!(DuplicatedKeyError);
+
+gura_error!(FileNotFoundError);
+
+gura_error!(DuplicatedImportError);
