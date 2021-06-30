@@ -53,7 +53,10 @@ impl PartialEq for VariableValueType {
             (VariableValueType::String(value1), VariableValueType::String(value2)) => {
                 value1 == value2
             }
-            (VariableValueType::Number(value1), VariableValueType::Number(value2)) => {
+            (VariableValueType::Integer(value1), VariableValueType::Integer(value2)) => {
+                value1 == value2
+            }
+            (VariableValueType::Float(value1), VariableValueType::Float(value2)) => {
                 value1.partial_cmp(value2) == Some(Ordering::Equal)
             }
             _ => false,
@@ -64,7 +67,8 @@ impl PartialEq for VariableValueType {
 #[derive(Debug, Clone)]
 pub enum VariableValueType {
     String(String),
-    Number(f64),
+    Integer(isize),
+    Float(f64),
 }
 
 /* Data types to be returned by match expression methods */
@@ -436,7 +440,8 @@ fn basic_string(text: &mut Input) -> RuleResult {
             if current_char == '$' {
                 let var_name = get_var_name(text)?;
                 let var_value_str: String = match get_variable_value(text, &var_name)? {
-                    VariableValueType::Number(number) => number.to_string(),
+                    VariableValueType::Integer(number)  => number.to_string(),
+                    VariableValueType::Float(number) => number.to_string(),
                     VariableValueType::String(value) => value,
                 };
 
@@ -738,6 +743,7 @@ fn matches(text: &mut Input, rules: Rules) -> RuleResult {
 
         match rule(text) {
             Err(e) => {
+                println!("Error -> {:?}", e);
                 if let Some(err) = e.downcast_ref::<ParseError>() {
                     text.pos = initial_pos;
 
@@ -945,7 +951,10 @@ fn quoted_string_with_var(text: &mut Input) -> RuleResult {
                 Ok(some_var) => {
                     let mut var_chars: Vec<char> = match some_var {
                         VariableValueType::String(var_value_str) => var_value_str.chars().collect(),
-                        VariableValueType::Number(var_value_number) => {
+                        VariableValueType::Integer(var_value_number) => {
+                            var_value_number.to_string().chars().collect()
+                        }
+                        VariableValueType::Float(var_value_number) => {
                             var_value_number.to_string().chars().collect()
                         }
                     };
@@ -986,9 +995,12 @@ fn eat_ws_and_new_lines(text: &mut Input) {
 fn get_variable_value(text: &mut Input, key: &String) -> Result<VariableValueType, Box<dyn Error>> {
     match text.variables.get(key) {
         Some(ref value) => match value {
-            VariableValueType::Number(number_value) => {
-                return Ok(VariableValueType::Number(*number_value))
-            }
+            VariableValueType::Integer(number_value) => {
+                return Ok(VariableValueType::Integer(*number_value))
+            },
+            VariableValueType::Float(number_value) => {
+                return Ok(VariableValueType::Float(*number_value))
+            },
             VariableValueType::String(str_value) => {
                 return Ok(VariableValueType::String(str_value.clone()))
             }
@@ -1068,24 +1080,33 @@ fn variable(text: &mut Input) -> RuleResult {
             ],
         )?;
 
-        if let GuraType::VariableValue(var_value) = match_result {
-            if text.variables.contains_key(&key_value) {
-                return Err(Box::new(DuplicatedVariableError::new(format!(
-                    "Variable '{}' has been already declared",
-                    key_value
-                ))));
-            }
+        println!("{:?}", match_result);
+        let final_var_value: VariableValueType = match match_result {
+            GuraType::String(var_value) => VariableValueType::String(var_value),
+            GuraType::Integer(var_value) => VariableValueType::Integer(var_value),
+            GuraType::Float(var_value) => VariableValueType::Float(var_value),
+            GuraType::VariableValue(var_value) => {
+                if text.variables.contains_key(&key_value) {
+                    return Err(Box::new(DuplicatedVariableError::new(format!(
+                        "Variable '{}' has been already declared",
+                        key_value
+                    ))));
+                }
 
-            // Store as variable
-            text.variables.insert(key_value, var_value);
-            Ok(GuraType::Variable)
-        } else {
-            Err(Box::new(ParseError::new(
-                text.pos,
-                text.line,
-                String::from("Invalid variable value"),
-            )))
-        }
+                var_value
+            }
+            _ => {
+                return Err(Box::new(ParseError::new(
+                    text.pos,
+                    text.line,
+                    String::from("Invalid variable value"),
+                )));
+            }
+        };
+
+        // Store as variable
+        text.variables.insert(key_value, final_var_value);
+        Ok(GuraType::Variable)
     } else {
         Err(Box::new(ParseError::new(
             text.pos,
@@ -1386,7 +1407,7 @@ fn object(text: &mut Input) -> RuleResult {
 fn pair(text: &mut Input) -> RuleResult {
     let pos_before_pair = text.pos;
 
-    // let currentIndentationLevel = maybe_match(text, vec![Box::new(wsWithIndentation)]);
+    // TODO: try to simplify
     if let GuraType::Indentation(current_indentation_level) =
         matches(text, vec![Box::new(ws_with_indentation)])?
     {
