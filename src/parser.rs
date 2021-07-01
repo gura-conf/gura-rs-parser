@@ -1390,7 +1390,7 @@ fn object(text: &mut Input) -> RuleResult {
             text,
             vec![Box::new(variable), Box::new(pair), Box::new(useless_line)],
         )? {
-            None => break,
+            None | Some(GuraType::Null) => break,
             Some(GuraType::Pair(key, value, indentation)) => {
                 if result.contains_key(&key) {
                     return Err(Box::new(DuplicatedKeyError::new(format!(
@@ -1413,7 +1413,11 @@ fn object(text: &mut Input) -> RuleResult {
         }
     }
 
-    Ok(GuraType::ObjectWithWs(result, indentation_level))
+    if result.len() > 0 {
+        Ok(GuraType::ObjectWithWs(result, indentation_level))
+    } else {
+        Ok(GuraType::Null)
+    }
 }
 
 /**
