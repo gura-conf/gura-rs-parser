@@ -3,6 +3,7 @@ use crate::errors::{
     VariableNotDefinedError,
 };
 use itertools::Itertools;
+use unicode_segmentation::UnicodeSegmentation;
 use std::collections::hash_map::{Iter, IterMut};
 use std::{
     cmp::Ordering,
@@ -271,7 +272,7 @@ impl Input {
         self.text = text.to_string();
         self.pos = 0;
         self.line = 0;
-        self.len = text.len() - 1;
+        self.len = text.len();
     }
 
     /**
@@ -598,7 +599,7 @@ fn assert_end(text: &Input) -> Result<(), ParseError> {
             text.pos,
             text.line,
             format!(
-                "Expected end of string but got {}",
+                "Expected end of string but got '{}'",
                 // text.text.chars().nth(text.pos + 1).unwrap()
                 text.text.chars().nth(text.pos).unwrap()
             ),
@@ -646,14 +647,13 @@ fn split_char_ranges(text: &mut Input, chars: &String) -> Result<Vec<String>, Va
 /// :return: Matched char
 // TODO: change to &Option<&str>
 fn char(text: &mut Input, chars: &Option<String>) -> Result<char, Box<dyn Error>> {
-    // if text.pos >= text.len {
-    if text.pos > text.len {
+    if text.pos >= text.len {
         return Err(Box::new(ParseError::new(
             // text.pos + 1,
             text.pos,
             text.line,
             format!(
-                "Expected {} but got end of string",
+                "Expected '{}' but got end of string",
                 match chars {
                     None => String::from("character"),
                     Some(chars) => format!("{}", chars),
@@ -691,7 +691,7 @@ fn char(text: &mut Input, chars: &Option<String>) -> Result<char, Box<dyn Error>
                 text.pos,
                 text.line,
                 format!(
-                    "Expected {} but got {}",
+                    "Expected '{}' but got '{}'",
                     format!("[{}]", chars_value),
                     next_char
                 ),
@@ -705,14 +705,13 @@ fn char(text: &mut Input, chars: &Option<String>) -> Result<char, Box<dyn Error>
 /// :raise: ParseError if any of the specified keywords matched
 /// :return: The first matched keyword
 fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Error>> {
-    // if text.pos >= text.len {
-    if text.pos > text.len {
+    if text.pos >= text.len {
         return Err(Box::new(ParseError::new(
             // text.pos + 1,
             text.pos,
             text.line,
             format!(
-                "Expected {} but got end of string",
+                "Expected '{}' but got end of string",
                 keywords.iter().join(",")
             ),
         )));
@@ -721,14 +720,12 @@ fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Err
     for keyword in keywords {
         // let low = text.pos + 1;
         let low = text.pos;
-        let high = low + keyword.len();
-        // println!("Keyword -> {} | Text -> {:?} ({} to {})", keyword, text.text.get(low..high), low, high);
-
-        if let Some(current_substring) = text.text.get(low..high) {
-            if current_substring == *keyword {
-                text.pos += keyword.len();
-                return Ok(keyword.to_string());
-            }
+        // let high = low + keyword.len();
+        let graph = UnicodeSegmentation::graphemes(text.text.as_str(), true);
+        let substring = graph.skip(low).take(keyword.len()).collect::<String>();
+        if substring == *keyword {
+            text.pos += keyword.len();
+            return Ok(keyword.to_string());
         }
     }
 
@@ -737,7 +734,7 @@ fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Err
         text.pos,
         text.line,
         format!(
-            "Expected {} but got {}",
+            "Expected '{}' but got '{}'",
             keywords.iter().join(", "),
             // text.text.chars().nth(text.pos + 1).unwrap()
             text.text.chars().nth(text.pos).unwrap()
@@ -760,7 +757,6 @@ fn matches(text: &mut Input, rules: Rules) -> RuleResult {
 
         match rule(text) {
             Err(e) => {
-                println!("Error -> {:?}", e);
                 if let Some(err) = e.downcast_ref::<ParseError>() {
                     text.pos = initial_pos;
 
@@ -1097,7 +1093,6 @@ fn variable(text: &mut Input) -> RuleResult {
             ],
         )?;
 
-        println!("{:?}", match_result);
         let final_var_value: VariableValueType = match match_result {
             GuraType::String(var_value) => VariableValueType::String(var_value),
             GuraType::Integer(var_value) => VariableValueType::Integer(var_value),
@@ -1152,7 +1147,7 @@ fn key(text: &mut Input) -> RuleResult {
             text.pos,
             text.line,
             format!(
-                "Expected string but got \"{}\"",
+                "Expected string but got '{}'",
                 // text.text.chars().nth(text.pos + 1).unwrap()
                 text.text.chars().nth(text.pos).unwrap()
             ),
