@@ -28,16 +28,16 @@ const INF_AND_NAN: &str = "in"; // The rest of the chars are defined in hex_oct_
 const KEY_ACCEPTABLE_CHARS: &str = "0-9A-Za-z_";
 
 /// Returns a HashMap with special characters to be escaped
-fn escape_sequences() -> HashMap<char, char> {
+fn escape_sequences<'a>() -> HashMap<&'a str, String> {
     [
-        ('b', '\x08'),
-        ('f', '\x0c'),
-        ('n', '\n'),
-        ('r', '\r'),
-        ('t', '\t'),
-        ('"', '"'),
-        ('\\', '\\'),
-        ('$', '$'),
+        ("b", "\x08".to_string()),
+        ("f", "\x0c".to_string()),
+        ("n", "\n".to_string()),
+        ("r", "\r".to_string()),
+        ("t", "\t".to_string()),
+        ("\"", "\"".to_string()),
+        ("\\", "\\".to_string()),
+        ("$", "$".to_string()),
     ]
     .iter()
     .cloned()
@@ -102,7 +102,7 @@ impl fmt::Display for GuraType {
 }
 
 /// Implements indexing by `&str` to easily access object members:
-impl<'a> Index<&'a str> for GuraType {
+impl Index<&str> for GuraType {
     type Output = GuraType;
 
     fn index(&self, index: &str) -> &GuraType {
@@ -121,7 +121,7 @@ impl Index<String> for GuraType {
     }
 }
 
-impl<'a> Index<&'a String> for GuraType {
+impl Index<&String> for GuraType {
     type Output = GuraType;
 
     fn index(&self, index: &String) -> &GuraType {
@@ -239,24 +239,27 @@ impl GuraType {
 
 /// Struct to handle user Input internally
 struct Input {
-    text: String,
+    /// Text as a Vec of Unicode chars (grapheme clusters)
+    text: Vec<String>,
     pos: usize,
     line: usize,
     len: usize,
-    cache: HashMap<String, Vec<String>>,
+    /// Vec of Grapheme clusters vecs
+    cache: HashMap<String, Vec<Vec<String>>>,
     variables: HashMap<String, VariableValueType>,
     indentation_levels: Vec<usize>,
     imported_files: HashSet<String>,
 }
 
 impl Input {
+    // TODO: replace this with the same logic as restart_params
     fn new() -> Self {
         Input {
             cache: HashMap::new(),
             pos: 0,
             line: 0,
             len: 0,
-            text: String::new(),
+            text: Vec::new(),
             variables: HashMap::new(),
             indentation_levels: Vec::new(),
             imported_files: HashSet::new(),
@@ -269,10 +272,11 @@ impl Input {
     	* @param text - Text to set as the internal text to be parsed.
     	*/
     fn restart_params(&mut self, text: &String) {
-        self.text = text.to_string();
+        let graph = get_graphemes_cluster(text);
+        self.text = graph;
         self.pos = 0;
         self.line = 0;
-        self.len = text.len();
+        self.len = self.text.len();
     }
 
     /**
@@ -283,6 +287,11 @@ impl Input {
             self.indentation_levels.pop();
         }
     }
+}
+
+/// Generates a Vec with every Grapheme cluster from an String
+fn get_graphemes_cluster(text: &String) -> Vec<String> {
+    UnicodeSegmentation::graphemes(text.as_str(), true).map(String::from).collect()
 }
 
 /**
@@ -403,7 +412,7 @@ fn basic_string(text: &mut Input) -> RuleResult {
         maybe_char(text, &Some(String::from("\n")))?;
     }
 
-    let mut chars: Vec<char> = Vec::new();
+    let mut final_string: String = String::new();
 
     let escape_sequences_map = escape_sequences();
 
@@ -414,23 +423,22 @@ fn basic_string(text: &mut Input) -> RuleResult {
         }
 
         let current_char = char(text, &None)?;
-        if current_char == '\\' {
+        if current_char == "\\" {
             let escape = char(text, &None)?;
 
             // Checks backslash followed by a newline to trim all whitespaces
-            if is_multiline && escape == '\n' {
+            if is_multiline && escape == "\n" {
                 eat_ws_and_new_lines(text)
             } else {
                 // Supports Unicode of 16 and 32 bits representation
-                if escape == 'u' || escape == 'U' {
-                    let num_chars_code_point = if escape == 'u' { 4 } else { 8 };
-                    let mut code_point: Vec<char> = Vec::with_capacity(num_chars_code_point);
+                if escape == "u" || escape == "U" {
+                    let num_chars_code_point = if escape == "u" { 4 } else { 8 };
+                    let mut code_point: String = String::with_capacity(num_chars_code_point);
                     for _ in 0..num_chars_code_point {
                         let code_point_char = char(text, &Some(String::from("0-9a-fA-F")))?;
-                        code_point.push(code_point_char);
+                        code_point.push_str(&code_point_char);
                     }
-                    let code_point_str = code_point.iter().cloned().collect::<String>();
-                    let hex_value = u32::from_str_radix(code_point_str.as_str(), 16);
+                    let hex_value = u32::from_str_radix(&code_point, 16);
                     match hex_value {
                         Err(_) => {
                             return Err(Box::new(ParseError::new(
@@ -441,21 +449,21 @@ fn basic_string(text: &mut Input) -> RuleResult {
                         }
                         Ok(hex_value) => {
                             let char_value = char::from_u32(hex_value).unwrap(); // Converts from UNICODE to string
-                            chars.push(char_value)
+                            final_string.push(char_value)
                         }
                     };
                 } else {
                     // Gets escaped char
-                    let escaped_char = match escape_sequences_map.get(&escape) {
-                        Some(good_escape_char) => good_escape_char.clone(),
-                        None => current_char,
+                    let escaped_char = match escape_sequences_map.get(escape.as_str()) {
+                        Some(good_escape_char) => good_escape_char,
+                        None => &current_char,
                     };
-                    chars.push(escaped_char);
+                    final_string.push_str(&escaped_char);
                 }
             }
         } else {
             // Computes variables values in string
-            if current_char == '$' {
+            if current_char == "$" {
                 let var_name = get_var_name(text)?;
                 let var_value_str: String = match get_variable_value(text, &var_name)? {
                     VariableValueType::Integer(number) => number.to_string(),
@@ -463,15 +471,13 @@ fn basic_string(text: &mut Input) -> RuleResult {
                     VariableValueType::String(value) => value,
                 };
 
-                let mut chars_vec = var_value_str.chars().collect::<Vec<char>>();
-                chars.append(&mut chars_vec)
+                final_string.push_str(&var_value_str);
             } else {
-                chars.push(current_char);
+                final_string.push_str(&current_char);
             }
         }
     }
 
-    let final_string = chars.iter().cloned().collect::<String>();
     Ok(GuraType::String(final_string))
 }
 
@@ -484,7 +490,7 @@ fn get_var_name(text: &mut Input) -> Result<String, Box<dyn Error>> {
     let key_acceptable_chars = Some(String::from(KEY_ACCEPTABLE_CHARS));
     let mut var_name = String::new();
     while let Some(var_name_char) = maybe_char(text, &key_acceptable_chars)? {
-        var_name.push(var_name_char);
+        var_name.push_str(&var_name_char);
     }
 
     Ok(var_name)
@@ -592,7 +598,7 @@ fn variable_value(text: &mut Input) -> RuleResult {
 
 /// Checks that the parser has reached the end of file, otherwise it will raise a ParseError
 /// :raise: ParseError if EOL has not been reached
-fn assert_end(text: &Input) -> Result<(), ParseError> {
+fn assert_end(text: &mut Input) -> Result<(), ParseError> {
     if text.pos < text.len {
         Err(ParseError::new(
             // text.pos + 1,
@@ -600,8 +606,7 @@ fn assert_end(text: &Input) -> Result<(), ParseError> {
             text.line,
             format!(
                 "Expected end of string but got '{}'",
-                // text.text.chars().nth(text.pos + 1).unwrap()
-                text.text.chars().nth(text.pos).unwrap()
+                text.text[text.pos]
             ),
         ))
     } else {
@@ -609,30 +614,36 @@ fn assert_end(text: &Input) -> Result<(), ParseError> {
     }
 }
 
+/// Generates a String from a slice of Strings (Grapheme clusters)
+fn get_string_from_slice(slice: &[String]) -> String {
+    slice.iter().cloned().collect()
+}
+
 /// Generates a list of char from a list of char which could container char ranges (i.e. a-z or 0-9)
 /// :param chars: List of chars to process
-/// :return: List of char with ranges processed
-fn split_char_ranges(text: &mut Input, chars: &String) -> Result<Vec<String>, ValueError> {
+/// returns Vec of Grapheme clusters vectors
+fn split_char_ranges(text: &mut Input, chars: &String) -> Result<Vec<Vec<String>>, ValueError> {
     if text.cache.contains_key(chars) {
         return Ok(text.cache.get(chars).unwrap().to_vec());
     }
 
-    let length = chars.len();
-    // let mut chars_vec = ;
-    let mut result: Vec<String> = Vec::new();
+    let chars_graph = get_graphemes_cluster(chars);
+    let length = chars_graph.len();
+    let mut result: Vec<Vec<String>> = Vec::new();
     let mut index = 0;
 
     while index < length {
-        if index + 2 < length && chars.chars().nth(index + 1).unwrap() == '-' {
-            if chars.chars().nth(index).unwrap() >= chars.chars().nth(index + 2).unwrap() {
+        if index + 2 < length && chars_graph[index + 1] == "-" {
+            if chars_graph[index] >= chars_graph[index + 2] {
                 return Err(ValueError {});
             }
 
-            let some_chars = chars.get(index..index + 3).unwrap();
-            result.push(some_chars.to_string());
+            let some_chars = &chars_graph[index..index + 3];
+            result.push(some_chars.to_vec());
             index += 3;
         } else {
-            result.push(chars.chars().nth(index).unwrap().to_string());
+            // Array of one char
+            result.push(vec![chars_graph[index].clone()]);
             index += 1;
         }
     }
@@ -645,8 +656,7 @@ fn split_char_ranges(text: &mut Input, chars: &String) -> Result<Vec<String>, Va
 /// :param chars: Chars to match. If it is None, it will return the next char in text
 /// :raise: ParseError if any of the specified char (i.e. if chars != None) matched
 /// :return: Matched char
-// TODO: change to &Option<&str>
-fn char(text: &mut Input, chars: &Option<String>) -> Result<char, Box<dyn Error>> {
+fn char(text: &mut Input, chars: &Option<String>) -> Result<String, Box<dyn Error>> {
     if text.pos >= text.len {
         return Err(Box::new(ParseError::new(
             // text.pos + 1,
@@ -662,26 +672,29 @@ fn char(text: &mut Input, chars: &Option<String>) -> Result<char, Box<dyn Error>
         )));
     }
 
-    // let next_char = text.text.chars().nth(text.pos + 1).unwrap();
-    let next_char = text.text.chars().nth(text.pos).unwrap();
     match chars {
         None => {
+            let next_char = &text.text[text.pos];
             text.pos += 1;
-            return Ok(next_char);
+            return Ok(next_char.to_string());
         }
         Some(chars_value) => {
             for char_range in split_char_ranges(text, &chars_value)? {
                 if char_range.len() == 1 {
-                    if next_char == char_range.chars().nth(0).unwrap() {
+                    let next_char = &text.text[text.pos];
+                    if *next_char == char_range[0] {
                         text.pos += 1;
-                        return Ok(next_char);
+                        return Ok(next_char.to_string());
                     }
                 } else {
-                    let bottom = char_range.chars().nth(0).unwrap();
-                    let top = char_range.chars().nth(2).unwrap();
-                    if bottom <= next_char && next_char <= top {
-                        text.pos += 1;
-                        return Ok(next_char);
+                    if char_range.len() == 3 {
+                        let next_char = &text.text[text.pos];
+                        let bottom = &char_range[0];
+                        let top = &char_range[2];
+                        if bottom <= next_char && next_char <= top {
+                            text.pos += 1;
+                            return Ok(next_char.to_string());
+                        }
                     }
                 }
             }
@@ -693,7 +706,7 @@ fn char(text: &mut Input, chars: &Option<String>) -> Result<char, Box<dyn Error>
                 format!(
                     "Expected '{}' but got '{}'",
                     format!("[{}]", chars_value),
-                    next_char
+                    text.text[text.pos]
                 ),
             )));
         }
@@ -720,9 +733,8 @@ fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Err
     for keyword in keywords {
         // let low = text.pos + 1;
         let low = text.pos;
-        // let high = low + keyword.len();
-        let graph = UnicodeSegmentation::graphemes(text.text.as_str(), true);
-        let substring = graph.skip(low).take(keyword.len()).collect::<String>();
+        let high = low + keyword.len();
+        let substring = get_string_from_slice(&text.text[low..high]);
         if substring == *keyword {
             text.pos += keyword.len();
             return Ok(keyword.to_string());
@@ -736,8 +748,7 @@ fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Err
         format!(
             "Expected '{}' but got '{}'",
             keywords.iter().join(", "),
-            // text.text.chars().nth(text.pos + 1).unwrap()
-            text.text.chars().nth(text.pos).unwrap()
+            text.text[text.pos]
         ),
     )))
 }
@@ -792,7 +803,7 @@ fn matches(text: &mut Input, rules: Rules) -> RuleResult {
     //         format!(
     //             "Expected {} but got {}",
     //             last_error_rules.iter().join(","),
-    //             text.text.chars().nth(last_error_pos).unwrap()
+    //             graphene(&text.text).nth(last_error_pos).unwrap()
     //         ),
     //     )))
     // }
@@ -801,7 +812,8 @@ fn matches(text: &mut Input, rules: Rules) -> RuleResult {
 /// Like char() but returns None instead of raising ParseError
 /// :param chars: Chars to match. If it is None, it will return the next char in text
 /// :return: Char if matched, None otherwise
-fn maybe_char(text: &mut Input, chars: &Option<String>) -> Result<Option<char>, Box<dyn Error>> {
+// TODO: consider changing chars: &Option<&str>
+fn maybe_char(text: &mut Input, chars: &Option<String>) -> Result<Option<String>, Box<dyn Error>> {
     match char(text, chars) {
         Err(e) => {
             if e.downcast_ref::<ParseError>().is_some() {
@@ -833,7 +845,6 @@ fn maybe_match(text: &mut Input, rules: Rules) -> Result<Option<GuraType>, Box<d
 /// Like keyword() but returns None instead of raising ParseError
 /// :param keywords: Keywords to match
 /// :return: Keyword if matched, None otherwise
-/// TODO: change to Vec<str>!!
 fn maybe_keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<Option<String>, Box<dyn Error>> {
     match keyword(text, keywords) {
         Err(e) => {
@@ -888,8 +899,7 @@ fn new_line(text: &mut Input) -> RuleResult {
 fn comment(text: &mut Input) -> RuleResult {
     keyword(text, &vec!["#"])?;
     while text.pos < text.len {
-        // let char = text.text.chars().nth(text.pos + 1).unwrap();
-        let char = text.text.chars().nth(text.pos).unwrap();
+        let char = &text.text[text.pos];
         text.pos += 1;
         if String::from("\x0c\x0b\r\n").contains(char) {
             text.line += 1;
@@ -947,8 +957,8 @@ fn ws(text: &mut Input) -> RuleResult {
 */
 fn quoted_string_with_var(text: &mut Input) -> RuleResult {
     // TODO: consider using char(text, vec![String::from("\"")])
-    let quote = keyword(text, &vec!["\""])?.chars().nth(0).unwrap();
-    let mut chars: Vec<char> = Vec::new();
+    let quote = keyword(text, &vec!["\""])?;
+    let mut final_string = String::new();
 
     loop {
         let current_char = char(text, &None)?;
@@ -958,20 +968,20 @@ fn quoted_string_with_var(text: &mut Input) -> RuleResult {
         }
 
         // Computes variables values in string
-        if current_char == '$' {
+        if current_char == "$" {
             let var_name = get_var_name(text)?;
             match get_variable_value(text, &var_name) {
                 Ok(some_var) => {
-                    let mut var_chars: Vec<char> = match some_var {
-                        VariableValueType::String(var_value_str) => var_value_str.chars().collect(),
+                    let var_value: String = match some_var {
+                        VariableValueType::String(var_value_str) => var_value_str.to_string(),
                         VariableValueType::Integer(var_value_number) => {
-                            var_value_number.to_string().chars().collect()
+                            var_value_number.to_string()
                         }
                         VariableValueType::Float(var_value_number) => {
-                            var_value_number.to_string().chars().collect()
+                            var_value_number.to_string()
                         }
                     };
-                    chars.append(&mut var_chars);
+                    final_string.push_str(&var_value);
                 }
                 _ => {
                     return Err(Box::new(VariableNotDefinedError::new(String::from(
@@ -980,11 +990,10 @@ fn quoted_string_with_var(text: &mut Input) -> RuleResult {
                 }
             }
         } else {
-            chars.push(current_char);
+            final_string.push_str(&current_char);
         }
     }
 
-    let final_string = chars.iter().cloned().collect::<String>();
     Ok(GuraType::String(final_string))
 }
 
@@ -1041,7 +1050,7 @@ fn get_text_with_imports(
     original_text: &String,
     parent_dir_path: String,
     imported_files: HashSet<String>,
-) -> Result<(String, HashSet<String>), ParseError> {
+) -> Result<(Vec<String>, HashSet<String>), ParseError> {
     text.restart_params(original_text);
     let imported_files = compute_imports(text, Some(parent_dir_path), imported_files)?;
     Ok((text.text.clone(), imported_files))
@@ -1148,8 +1157,7 @@ fn key(text: &mut Input) -> RuleResult {
             text.line,
             format!(
                 "Expected string but got '{}'",
-                // text.text.chars().nth(text.pos + 1).unwrap()
-                text.text.chars().nth(text.pos).unwrap()
+                text.text[text.pos]
             ),
         )))
     }
@@ -1214,17 +1222,17 @@ fn number(text: &mut Input) -> RuleResult {
 
     let mut number_type = NumberType::Integer;
 
-    let mut chars = vec![char(text, &acceptable_number_chars)?];
+    let mut chars = char(text, &acceptable_number_chars)?.to_string();
 
     loop {
         let matched_char = maybe_char(text, &acceptable_number_chars)?;
         match matched_char {
             Some(a_char) => {
-                if String::from("Ee.").contains(a_char) {
+                if String::from("Ee.").contains(&a_char) {
                     number_type = NumberType::Float
                 }
 
-                chars.push(a_char)
+                chars.push_str(&a_char);
             }
             None => break,
         };
@@ -1232,37 +1240,28 @@ fn number(text: &mut Input) -> RuleResult {
 
     // Replaces underscores as Rust does not support them in the same way Gura does
     let result = chars
-        .iter()
-        .cloned()
-        .collect::<String>()
         .trim_end()
         .replace("_", "");
 
     // Checks hexadecimal, octal and binary format
-    if let Some(prefix) = result.get(0..2) {
-        if vec!["0x", "0o", "0b"].contains(&prefix) {
-            let base: u32;
-            let without_prefix = result[2..].to_string();
-            match prefix {
-                "0x" => base = 16,
-                "0o" => base = 8,
-                _ => base = 2,
-            };
+    let prefix = &result[0..2];
+    if vec!["0x", "0o", "0b"].contains(&prefix) {
+        let base: u32;
+        let without_prefix = result[2..].to_string();
+        match prefix {
+            "0x" => base = 16,
+            "0o" => base = 8,
+            _ => base = 2,
+        };
 
-            let int_value = isize::from_str_radix(&without_prefix, base).unwrap();
-            return Ok(GuraType::Integer(int_value));
-        }
+        let int_value = isize::from_str_radix(&without_prefix, base).unwrap();
+        return Ok(GuraType::Integer(int_value));
     }
 
     // Checks inf or NaN
-    // Checks result len to prevent "attempt to subtract with overflow" error
-    let last_three_chars = if result.len() >= 3 {
-        result[result.len() - 3..].to_string()
-    } else {
-        String::from("")
-    };
+    let result_len = result.len();
+    let last_three_chars = &result[result_len - 3..result_len];
 
-    let last_three_chars = last_three_chars.as_str();
     match last_three_chars {
         "inf" => {
             return Ok(GuraType::Float(if result.chars().next().unwrap() == '-' {
@@ -1355,19 +1354,18 @@ fn literal_string(text: &mut Input) -> RuleResult {
         maybe_char(text, &Some(String::from("\n")))?;
     }
 
-    let mut chars: Vec<char> = Vec::new();
+    let mut final_string = String::new();
 
     loop {
         match maybe_keyword(text, &vec![&quote])? {
             Some(_) => break,
             _ => {
                 let matched_char = char(text, &None)?;
-                chars.push(matched_char);
+                final_string.push_str(&matched_char);
             }
         }
     }
 
-    let final_string = chars.iter().cloned().collect::<String>();
     Ok(GuraType::String(final_string))
 }
 

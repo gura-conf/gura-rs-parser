@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 itertools = "0.10.1"
+unicode-segmentation = "1.7.1"
 
 [dev-dependencies]
 tempfile = "3.2.0"
