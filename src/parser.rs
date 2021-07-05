@@ -662,10 +662,10 @@ fn char(text: &mut Input, chars: &Option<String>) -> Result<String, Box<dyn Erro
             text.pos,
             text.line,
             format!(
-                "Expected '{}' but got end of string",
+                "Expected {} but got end of string",
                 match chars {
-                    None => String::from("character"),
-                    Some(chars) => format!("{}", chars),
+                    None => String::from("next character"),
+                    Some(chars) => format!("'{}'", chars),
                 }
             ),
         )));
@@ -719,7 +719,6 @@ fn char(text: &mut Input, chars: &Option<String>) -> Result<String, Box<dyn Erro
 fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Error>> {
     if text.pos >= text.len {
         return Err(Box::new(ParseError::new(
-            // text.pos + 1,
             text.pos,
             text.line,
             format!(
@@ -734,7 +733,7 @@ fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Err
         let low = text.pos;
         let high = low + keyword.len();
         // This checking prevents index out of range
-        if high < text.len {
+        if high <= text.len {
             let substring = get_string_from_slice(&text.text[low..high]);
             if substring == *keyword {
                 text.pos += keyword.len();
@@ -763,30 +762,22 @@ fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Err
 fn matches(text: &mut Input, rules: Rules) -> RuleResult {
     let mut last_error_pos: Option<usize> = None;
     let mut last_exception: Option<Box<dyn Error>> = None;
-    // let last_error_rules: Vec<Box<dyn Error>> = Vec::with_capacity(rules.len());
 
     for rule in rules {
         let initial_pos = text.pos;
-
         match rule(text) {
-            Err(e) => {
-                if let Some(err) = e.downcast_ref::<ParseError>() {
+            Err(an_error) => {
+                // Only considers ParseError instances
+                if let Some(parse_error) = an_error.downcast_ref::<ParseError>() {
                     text.pos = initial_pos;
 
-                    if last_error_pos.is_none() || err.pos > last_error_pos.unwrap() {
-                        last_error_pos = Some(err.pos);
-                        last_exception = Some(e);
-                        // last_error_rules.clear();
-                        // last_error_rules.push(rule.)
+                    if last_error_pos.is_none() || parse_error.pos > last_error_pos.unwrap() {
+                        last_error_pos = Some(parse_error.pos);
+                        last_exception = Some(an_error);
                     }
-                    // else {
-                    // 	if err.pos == last_error_pos {
-                    // 		last_error_rules.append(rule)
-                    // 	}
-                    // }
                 } else {
                     // Any other kind of exception must be raised
-                    return Err(e);
+                    return Err(an_error);
                 }
             }
             result => return result,
@@ -794,21 +785,7 @@ fn matches(text: &mut Input, rules: Rules) -> RuleResult {
     }
 
     // Unwrap is safe as if this line is reached no rule matched
-    // Err(last_exception.unwrap())
     Err(last_exception.unwrap())
-    // if last_error_rules.len() > 0 {
-    // } else {
-    //     let last_error_pos = (text.text.len() - 1).min(last_error_pos);
-    //     Err(Box::new(ParseError::new(
-    //         last_error_pos,
-    //         text.line,
-    //         format!(
-    //             "Expected {} but got {}",
-    //             last_error_rules.iter().join(","),
-    //             graphene(&text.text).nth(last_error_pos).unwrap()
-    //         ),
-    //     )))
-    // }
 }
 
 /// Like char() but returns None instead of raising ParseError
