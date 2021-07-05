@@ -16,7 +16,7 @@ use std::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-// Number chars
+/// Number chars
 const BASIC_NUMBERS_CHARS: &str = "0-9";
 const HEX_OCT_BIN: &str = "A-Fa-fxob";
 const INF_AND_NAN: &str = "in"; // The rest of the chars are defined in hex_oct_bin
@@ -24,8 +24,11 @@ const INF_AND_NAN: &str = "in"; // The rest of the chars are defined in hex_oct_
 // IMPORTANT: '-' char must be last, otherwise it will be interpreted as a range
 // const ACCEPTABLE_NUMBER_CHARS: Option<String> = Some(BASIC_NUMBERS_CHARS + &HEX_OCT_BIN + &INF_AND_NAN + "Ee+._-");
 
-// Acceptable chars for keys
+/// Acceptable chars for keys
 const KEY_ACCEPTABLE_CHARS: &str = "0-9A-Za-z_";
+
+/// New line chars
+const NEW_LINE_CHARS: &str = "\n\x0c\x0b\x08";
 
 /// Returns a HashMap with special characters to be escaped
 fn escape_sequences<'a>() -> HashMap<&'a str, String> {
@@ -442,6 +445,8 @@ fn basic_string(text: &mut Input) -> RuleResult {
                         let code_point_char = char(text, &Some(String::from("0-9a-fA-F")))?;
                         code_point.push_str(&code_point_char);
                     }
+
+                    // Gets hex value and gets the corresponding char
                     let hex_value = u32::from_str_radix(&code_point, 16);
                     match hex_value {
                         Err(_) => {
@@ -871,7 +876,7 @@ pub fn parse(text: &String) -> RuleResult {
 /// * \v - U+000B
 /// * \r - U+0008
 fn new_line(text: &mut Input) -> RuleResult {
-    let new_line_chars = Some(String::from("\n\x0c\x0b\x08"));
+    let new_line_chars = Some(String::from(NEW_LINE_CHARS));
     let res = char(text, &new_line_chars);
     if res.is_ok() {
         text.line += 1;
@@ -988,7 +993,7 @@ fn quoted_string_with_var(text: &mut Input) -> RuleResult {
 * Consumes all the whitespaces and new lines.
 */
 fn eat_ws_and_new_lines(text: &mut Input) {
-    let ws_and_new_lines_chars = Some(String::from(" \x0c\x0b\r\n\t"));
+    let ws_and_new_lines_chars = Some(" ".to_owned() + NEW_LINE_CHARS);
     while let Ok(Some(_)) = maybe_char(text, &ws_and_new_lines_chars) {
         continue;
     }
