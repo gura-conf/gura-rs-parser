@@ -1,9 +1,11 @@
 use crate::errors::{
-    DuplicatedKeyError, DuplicatedVariableError, InvalidIndentationError, ParseError, ValueError,
-    VariableNotDefinedError,
+    DuplicatedImportError, DuplicatedKeyError, DuplicatedVariableError, FileNotFoundError,
+    InvalidIndentationError, ParseError, ValueError, VariableNotDefinedError,
 };
 use itertools::Itertools;
 use std::collections::hash_map::{Iter, IterMut};
+use std::fs;
+use std::path::Path;
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
@@ -97,7 +99,7 @@ pub enum GuraType {
     Array(Vec<Box<GuraType>>),
     WsOrNewLine,
     /// Indicates the ending of an object
-    BreakParent
+    BreakParent,
 }
 
 impl fmt::Display for GuraType {
@@ -307,7 +309,7 @@ fn get_graphemes_cluster(text: &String) -> Vec<String> {
 * @returns Dict with all the extracted values from Gura string.
 */
 fn start(text: &mut Input) -> RuleResult {
-    compute_imports(text, None, HashSet::new())?;
+    compute_imports(text, None)?;
     let result = matches(text, vec![Box::new(object)])?;
     eat_ws_and_new_lines(text);
     Ok(result)
@@ -517,69 +519,81 @@ Gura files.
 fn compute_imports(
     text: &mut Input,
     parent_dir_path: Option<String>,
-    imported_files: HashSet<String>,
-) -> Result<HashSet<String>, ParseError> {
-    // TODO: implement after all the rest works
-    Ok(HashSet::new())
-    // let filesToImport: Vec<(String, Option<String>)> = Vec::new();
+) -> Result<(), Box<dyn Error>> {
+    let mut files_to_import: Vec<(String, Option<String>)> = Vec::new();
 
-    // // First, consumes all the import sentences to replace all of them
-    // while text.pos < text.len {
-    //   let matchResult = maybe_match([guraImport, variable, uselessLine]);
-    //   if matchResult.is_none() {
-    //     break;
-    //   }
+    // First, consumes all the import sentences to replace all of them
+    while text.pos < text.len {
+        let match_result = maybe_match(
+            text,
+            vec![
+                Box::new(gura_import),
+                Box::new(variable),
+                Box::new(useless_line),
+            ],
+        )?;
+        if match_result.is_none() {
+            break;
+        }
 
-    //   // Checks, it could be a comment
-    //   if let Some(GuraType::IMPORT(fileToImport)) = matchResult {
-    //     filesToImport.push((fileToImport, parentDirPath));
-    //   }
-    // }
+        // Checks, it could be a comment
+        if let Some(GuraType::Import(file_to_import)) = match_result {
+            files_to_import.push((file_to_import, parent_dir_path.clone()));
+        }
+    }
 
-    // let finalContent = ''
-    // if filesToImport.len() > 0 {
-    //   for (fileToImport, originFilePath) in filesToImport {
-    //     // Gets the final file path considering parent directory
-    //     if !originFilePath.is_none() {
-    //       let fileToImport = path.join(originFilePath, fileToImport);
-    //     }
+    let mut final_content = String::new();
 
-    //     // Files can be imported only once.This prevents circular reference
-    //     if text.importedFiles.has(fileToImport) {
-    //        	return Err(DuplicatedImportError::new(
-    // 		   format!("The file {} has been already imported", fileToImport)
-    // 	   	);
-    //     }
+    if files_to_import.len() > 0 {
+        for (mut file_to_import, origin_file_path) in files_to_import {
+            // Gets the final file path considering parent directory
+            if let Some(origin_path) = origin_file_path {
+                file_to_import = Path::new(&origin_path)
+                    .join(&file_to_import)
+                    .to_string_lossy()
+                    .to_string();
+            }
 
-    //     // Checks if file exists
+            // Files can be imported only once. This prevents circular reference
+            if text.imported_files.contains(&file_to_import) {
+                return Err(Box::new(DuplicatedImportError::new(format!(
+                    "The file {} has been already imported",
+                    file_to_import
+                ))));
+            }
 
-    //     // if (!existsSync(fileToImport)) {
-    //     //    	return Err(FileNotFoundError::new(
-    // 	// 	   format!("The file {} does not exist", fileToImport)
-    // 	//    	));
-    //     // }
+            // Checks if file exists
+            let file_exists = fs::metadata(&file_to_import).is_ok();
+            if !file_exists {
+                return Err(Box::new(FileNotFoundError::new(format!(
+                    "The file {} does not exist",
+                    file_to_import
+                ))));
+            }
 
-    //     // Gets content considering imports
-    //     // let content = readFileSync(fileToImport, "utf-8")
-    //     // let auxParser = new GuraParser();
-    //     // let parentDirPath = path.dirname(fileToImport);
-    //     // let (contentWithImport, importedFiles) = auxParser.getTextWithImports(
-    //     //   content,
-    //     //   parentDirPath,
-    //     //   this.importedFiles
-    //     // );
-    //     // finalContent += contentWithImport + '\n';
-    //     // importedFiles.add(fileToImport);
+            // Gets content considering imports
+            let content = fs::read_to_string(&file_to_import).unwrap();
+            let parent_dir_path = Path::new(&file_to_import).parent().unwrap();
+            let mut empty_input = Input::new();
+            let content_with_import = get_text_with_imports(
+                &mut empty_input,
+                &content,
+                parent_dir_path.to_str().unwrap().to_owned(),
+            )?;
 
-    //     // text.importedFiles.add(fileToImport);
-    //   }
+            final_content.push_str(&(content_with_import.iter().cloned().collect::<String>()));
+            final_content.push('\n');
 
-    //   // Sets as new text
-    ////   this.restartParams(finalContent + this.text.substring(this.pos + 1))
-    //   this.restartParams(finalContent + this.text.substring(this.pos))
-    // }
+            text.imported_files.insert(file_to_import);
+        }
 
-    // return importedFiles
+        // Sets as new text
+        let rest_of_content = get_string_from_slice(&text.text[text.pos..]);
+
+        text.restart_params(&(final_content + &rest_of_content));
+    }
+
+    return Ok(());
 }
 
 /**
@@ -1035,17 +1049,16 @@ fn get_variable_value(text: &mut Input, key: &String) -> Result<VariableValueTyp
 * @param originalText - Text to be parsed.
 * @param parentDirPath - Parent directory to keep relative paths reference.
 * @param importedFiles - Set with imported files to check if any was imported more than once.
-* @returns Final text with imported files' text on it.
+* @returns Final text with imported files' text on it and a HashSet with imported files.
 */
 fn get_text_with_imports(
     text: &mut Input,
     original_text: &String,
     parent_dir_path: String,
-    imported_files: HashSet<String>,
-) -> Result<(Vec<String>, HashSet<String>), ParseError> {
+) -> Result<Vec<String>, Box<dyn Error>> {
     text.restart_params(original_text);
-    let imported_files = compute_imports(text, Some(parent_dir_path), imported_files)?;
-    Ok((text.text.clone(), imported_files))
+    compute_imports(text, Some(parent_dir_path))?;
+    Ok(text.text.clone())
 }
 
 /**
@@ -1058,7 +1071,7 @@ fn gura_import(text: &mut Input) -> RuleResult {
     char(text, &Some(String::from(" ")))?;
     let string_match = matches(text, vec![Box::new(quoted_string_with_var)])?;
 
-    if let GuraType::Import(file_to_import) = string_match {
+    if let GuraType::String(file_to_import) = string_match {
         matches(text, vec![Box::new(ws)])?;
         maybe_match(text, vec![Box::new(new_line)])?;
         Ok(GuraType::Import(file_to_import))
@@ -1094,20 +1107,18 @@ fn variable(text: &mut Input) -> RuleResult {
             ],
         )?;
 
+        if text.variables.contains_key(&key_value) {
+            return Err(Box::new(DuplicatedVariableError::new(format!(
+                "Variable '{}' has been already declared",
+                key_value
+            ))));
+        }
+
         let final_var_value: VariableValueType = match match_result {
             GuraType::String(var_value) => VariableValueType::String(var_value),
             GuraType::Integer(var_value) => VariableValueType::Integer(var_value),
             GuraType::Float(var_value) => VariableValueType::Float(var_value),
-            GuraType::VariableValue(var_value) => {
-                if text.variables.contains_key(&key_value) {
-                    return Err(Box::new(DuplicatedVariableError::new(format!(
-                        "Variable '{}' has been already declared",
-                        key_value
-                    ))));
-                }
-
-                var_value
-            }
+            GuraType::VariableValue(var_value) => var_value,
             _ => {
                 return Err(Box::new(ParseError::new(
                     text.pos,
@@ -1307,11 +1318,11 @@ fn list(text: &mut Input) -> RuleResult {
             _ => {
                 match maybe_match(text, vec![Box::new(any_type)])? {
                     None => break,
-                    Some(GuraType::BreakParent) => (), 
+                    Some(GuraType::BreakParent) => (),
                     Some(value) => {
                         let item: Box<GuraType> = Box::new(object_ws_to_simple_object(value));
                         result.push(item);
-                    },
+                    }
                 }
 
                 maybe_match(text, vec![Box::new(ws)])?;
