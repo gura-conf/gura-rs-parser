@@ -93,6 +93,8 @@ pub enum GuraType {
     Float(f64),
     Array(Vec<Box<GuraType>>),
     WsOrNewLine,
+    /// Indicates the ending of an object
+    BreakParent
 }
 
 impl fmt::Display for GuraType {
@@ -837,6 +839,16 @@ fn maybe_keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<Option<String
     }
 }
 
+/// Converts a GuraType::ObjectWithWs in GuraType::Object.
+/// Any other types are returned as they are
+fn object_ws_to_simple_object(object: GuraType) -> GuraType {
+    if let GuraType::ObjectWithWs(values, _) = object {
+        GuraType::Object(values)
+    } else {
+        object
+    }
+}
+
 /**
  * Parses a text in Gura format.
  *
@@ -850,11 +862,7 @@ pub fn parse(text: &String) -> RuleResult {
     let result = start(text_parser)?;
     assert_end(text_parser)?;
 
-    if let GuraType::ObjectWithWs(values, _) = result {
-        Ok(GuraType::Object(values))
-    } else {
-        Ok(result)
-    }
+    Ok(object_ws_to_simple_object(result))
 }
 
 /// Matches with a new line. I.e any of the following chars:
@@ -1292,13 +1300,14 @@ fn list(text: &mut Input) -> RuleResult {
         match maybe_match(text, vec![Box::new(useless_line)])? {
             Some(_) => continue,
             _ => {
-                let item: Box<GuraType>;
                 match maybe_match(text, vec![Box::new(any_type)])? {
                     None => break,
-                    Some(value) => item = Box::new(value),
+                    Some(GuraType::BreakParent) => (), 
+                    Some(value) => {
+                        let item: Box<GuraType> = Box::new(object_ws_to_simple_object(value));
+                        result.push(item);
+                    },
                 }
-
-                result.push(item);
 
                 maybe_match(text, vec![Box::new(ws)])?;
                 maybe_match(text, vec![Box::new(new_line)])?;
@@ -1362,7 +1371,7 @@ fn object(text: &mut Input) -> RuleResult {
             text,
             vec![Box::new(variable), Box::new(pair), Box::new(useless_line)],
         )? {
-            None | Some(GuraType::Null) => break,
+            None | Some(GuraType::BreakParent) => break,
             Some(GuraType::Pair(key, value, indentation)) => {
                 if result.contains_key(&key) {
                     return Err(Box::new(DuplicatedKeyError::new(format!(
@@ -1388,7 +1397,7 @@ fn object(text: &mut Input) -> RuleResult {
     if result.len() > 0 {
         Ok(GuraType::ObjectWithWs(result, indentation_level))
     } else {
-        Ok(GuraType::Null)
+        Ok(GuraType::BreakParent)
     }
 }
 
@@ -1432,15 +1441,15 @@ fn pair(text: &mut Input) -> RuleResult {
                     // As the indentation was consumed, it is needed to return to line beginning to get the indentation level
                     // again in the previous matching.Otherwise, the other match would get indentation level = 0
                     text.pos = pos_before_pair;
-                    return Ok(GuraType::Null); // This breaks the parent loop
+                    return Ok(GuraType::BreakParent); // This breaks the parent loop
                 }
             }
 
-            // If it == null then is an empty expression, and therefore invalid
+            // If it is a BreakParent indicator then is an empty expression, and therefore invalid
             let matched_any = matches(text, vec![Box::new(any_type)])?;
             let mut result: Box<GuraType> = Box::new(matched_any.clone());
             match matched_any {
-                GuraType::Null => {
+                GuraType::BreakParent => {
                     return Err(Box::new(ParseError::new(
                         // text.pos + 1,
                         text.pos,
