@@ -878,11 +878,13 @@ pub fn parse(text: &String) -> RuleResult {
     }
 }
 
-/**
-* Matches with a new line.
-*/
+/// Matches with a new line. I.e any of the following chars:
+/// * \n - U+000A
+/// * \f - U+000C
+/// * \v - U+000B
+/// * \r - U+0008
 fn new_line(text: &mut Input) -> RuleResult {
-    let new_line_chars = Some(String::from("\x0c\x0b\r\n"));
+    let new_line_chars = Some(String::from("\n\x0c\x0b\x08"));
     let res = char(text, &new_line_chars);
     if res.is_ok() {
         text.line += 1;
