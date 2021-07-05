@@ -3,7 +3,6 @@ use crate::errors::{
     VariableNotDefinedError,
 };
 use itertools::Itertools;
-use unicode_segmentation::UnicodeSegmentation;
 use std::collections::hash_map::{Iter, IterMut};
 use std::{
     cmp::Ordering,
@@ -15,6 +14,7 @@ use std::{
     ops::{Add, AddAssign, Deref, Index},
     usize, vec,
 };
+use unicode_segmentation::UnicodeSegmentation;
 
 // Number chars
 const BASIC_NUMBERS_CHARS: &str = "0-9";
@@ -291,7 +291,9 @@ impl Input {
 
 /// Generates a Vec with every Grapheme cluster from an String
 fn get_graphemes_cluster(text: &String) -> Vec<String> {
-    UnicodeSegmentation::graphemes(text.as_str(), true).map(String::from).collect()
+    UnicodeSegmentation::graphemes(text.as_str(), true)
+        .map(String::from)
+        .collect()
 }
 
 /**
@@ -604,10 +606,7 @@ fn assert_end(text: &mut Input) -> Result<(), ParseError> {
             // text.pos + 1,
             text.pos,
             text.line,
-            format!(
-                "Expected end of string but got '{}'",
-                text.text[text.pos]
-            ),
+            format!("Expected end of string but got '{}'", text.text[text.pos]),
         ))
     } else {
         Ok(())
@@ -734,10 +733,13 @@ fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Err
         // let low = text.pos + 1;
         let low = text.pos;
         let high = low + keyword.len();
-        let substring = get_string_from_slice(&text.text[low..high]);
-        if substring == *keyword {
-            text.pos += keyword.len();
-            return Ok(keyword.to_string());
+        // This checking prevents index out of range
+        if high < text.len {
+            let substring = get_string_from_slice(&text.text[low..high]);
+            if substring == *keyword {
+                text.pos += keyword.len();
+                return Ok(keyword.to_string());
+            }
         }
     }
 
@@ -979,9 +981,7 @@ fn quoted_string_with_var(text: &mut Input) -> RuleResult {
                         VariableValueType::Integer(var_value_number) => {
                             var_value_number.to_string()
                         }
-                        VariableValueType::Float(var_value_number) => {
-                            var_value_number.to_string()
-                        }
+                        VariableValueType::Float(var_value_number) => var_value_number.to_string(),
                     };
                     final_string.push_str(&var_value);
                 }
@@ -1157,10 +1157,7 @@ fn key(text: &mut Input) -> RuleResult {
             // text.pos + 1,
             text.pos,
             text.line,
-            format!(
-                "Expected string but got '{}'",
-                text.text[text.pos]
-            ),
+            format!("Expected string but got '{}'", text.text[text.pos]),
         )))
     }
 }
@@ -1241,12 +1238,10 @@ fn number(text: &mut Input) -> RuleResult {
     }
 
     // Replaces underscores as Rust does not support them in the same way Gura does
-    let result = chars
-        .trim_end()
-        .replace("_", "");
+    let result = chars.trim_end().replace("_", "");
 
     // Checks hexadecimal, octal and binary format
-    let prefix = &result[0..2];
+    let prefix = result.get(0..2).unwrap_or("");
     if vec!["0x", "0o", "0b"].contains(&prefix) {
         let base: u32;
         let without_prefix = result[2..].to_string();
@@ -1261,8 +1256,13 @@ fn number(text: &mut Input) -> RuleResult {
     }
 
     // Checks inf or NaN
+    // Checks for length to prevent 'attempt to subtract with overflow' error
     let result_len = result.len();
-    let last_three_chars = &result[result_len - 3..result_len];
+    let last_three_chars = if result_len >= 3 {
+        &result[result_len - 3..result_len]
+    } else {
+        ""
+    };
 
     match last_three_chars {
         "inf" => {
