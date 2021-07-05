@@ -13,7 +13,7 @@ with_var: """
 $roses are red
 Violets are blue"""
 
-with_env_var: """$env_var_value are red\nViolets are blue""" # $env_var_value is defined in corresponding test.py
+with_env_var: """$env_var_value_multiline are red\nViolets are blue""" # $env_var_value_multiline is defined in corresponding test.py
 
 
 str_with_backslash: """

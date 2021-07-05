@@ -11,8 +11,8 @@ const ESCAPED_VALUE: &str = "$name is cool";
 
 fn get_expected_basic() -> GuraType {
     object! {
-        str: "I'm a string. \"You can quote me\". Na\\bme\tJos\\u00E9\nLocation\tSF.",
-        str_2: "I'm a string. \"You can quote me\". Na\\bme\tJos\\U000000E9\nLocation\tSF.",
+        str: "I'm a string. \"You can quote me\". Na\x08me\tJosé\nLocation\tSF.",
+        str_2: "I'm a string. \"You can quote me\". Na\x08me\tJosé\nLocation\tSF.",
         with_var: "Gura is cool",
         escaped_var: ESCAPED_VALUE,
         with_env_var: "Gura is very cool"
@@ -72,7 +72,7 @@ fn test_basic_strings() {
 #[test]
 /// Tests multiline basic strings
 fn test_multiline_basic_strings() {
-    let env_var_name = "env_var_value";
+    let env_var_name = "env_var_value_multiline";
     env::set_var(env_var_name, "Roses");
     let parsed_data =
         common::get_file_content_parsed(PARENT_FOLDER, "multiline_basic.ura").unwrap();
