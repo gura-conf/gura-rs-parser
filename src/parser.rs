@@ -3,6 +3,7 @@ use crate::errors::{
     InvalidIndentationError, ParseError, ValueError, VariableNotDefinedError,
 };
 use itertools::Itertools;
+use regex::Regex;
 use std::collections::hash_map::{Iter, IterMut};
 use std::fs;
 use std::path::Path;
@@ -13,7 +14,7 @@ use std::{
     error::Error,
     f64::{INFINITY, NAN, NEG_INFINITY},
     fmt,
-    ops::{Add, AddAssign, Deref, Index},
+    ops::{Add, Deref, Index},
     usize, vec,
 };
 use unicode_segmentation::UnicodeSegmentation;
@@ -49,6 +50,13 @@ fn escape_sequences<'a>() -> HashMap<&'a str, String> {
     .collect()
 }
 
+/// Useful for number parsing
+#[derive(Debug, PartialEq, Eq)]
+enum NumberType {
+    Integer,
+    Float,
+}
+
 type RuleResult = Result<GuraType, Box<dyn Error>>;
 type Rules = Vec<Box<dyn Fn(&mut Input) -> RuleResult>>;
 
@@ -71,6 +79,7 @@ impl PartialEq for VariableValueType {
     }
 }
 
+/// Defines all the possible types for a variable: numbers or strings
 #[derive(Debug, Clone)]
 pub enum VariableValueType {
     String(String),
@@ -78,7 +87,7 @@ pub enum VariableValueType {
     Float(f64),
 }
 
-/* Data types to be returned by match expression methods */
+/// Data types to be returned by match expression methods
 // TODO: Rename to Value
 #[derive(Debug, Clone, PartialEq)]
 pub enum GuraType {
@@ -88,8 +97,10 @@ pub enum GuraType {
     Pair(String, Box<GuraType>, usize),
     Comment,
     Import(String),
+    /// Indicates matching with a variable definition
     Variable,
-    VariableValue(VariableValueType),
+    // TODO: check https://docs.rs/indexmap/1.7.0/indexmap/map/struct.IndexMap.html
+    // as it preserves the order of insertion
     ObjectWithWs(HashMap<String, Box<GuraType>>, usize),
     Object(HashMap<String, Box<GuraType>>),
     Bool(bool),
@@ -186,7 +197,7 @@ impl PartialEq<GuraType> for f32 {
 impl PartialEq<f64> for GuraType {
     fn eq(&self, other: &f64) -> bool {
         match self {
-            &GuraType::Float(value) => value == *other,
+            &GuraType::Float(value) => (value.is_nan() && other.is_nan()) || value == *other,
             _ => false,
         }
     }
@@ -477,9 +488,10 @@ fn basic_string(text: &mut Input) -> RuleResult {
             if current_char == "$" {
                 let var_name = get_var_name(text)?;
                 let var_value_str: String = match get_variable_value(text, &var_name)? {
-                    VariableValueType::Integer(number) => number.to_string(),
-                    VariableValueType::Float(number) => number.to_string(),
-                    VariableValueType::String(value) => value,
+                    GuraType::Integer(number) => number.to_string(),
+                    GuraType::Float(number) => number.to_string(),
+                    GuraType::String(value) => value,
+                    _ => "".to_string(),
                 };
 
                 final_string.push_str(&var_value_str);
@@ -505,6 +517,15 @@ fn get_var_name(text: &mut Input) -> Result<String, Box<dyn Error>> {
     }
 
     Ok(var_name)
+}
+
+/// Removes suffix (if exists) from a string
+fn remove_suffix(source: String, suffix_to_replace: &str) -> String {
+    if source.ends_with(suffix_to_replace) {
+        (source[..source.len() - suffix_to_replace.len()]).to_string()
+    } else {
+        source
+    }
 }
 
 /**
@@ -609,7 +630,7 @@ fn variable_value(text: &mut Input) -> RuleResult {
     match matches(text, vec![Box::new(unquoted_string)])? {
         GuraType::String(key_name) => {
             let var_value = get_variable_value(text, &key_name)?;
-            Ok(GuraType::VariableValue(var_value))
+            Ok(var_value)
         }
         _ => Err(Box::new(ParseError::new(
             text.pos,
@@ -881,7 +902,11 @@ pub fn parse(text: &String) -> RuleResult {
     let result = start(text_parser)?;
     assert_end(text_parser)?;
 
-    Ok(object_ws_to_simple_object(result))
+    // Only objects are valid as final result
+    match result {
+        GuraType::ObjectWithWs(values, _) => Ok(GuraType::Object(values)),
+        _ => Ok(GuraType::Object(HashMap::new())),
+    }
 }
 
 /// Matches with a new line. I.e any of the following chars:
@@ -981,11 +1006,10 @@ fn quoted_string_with_var(text: &mut Input) -> RuleResult {
             match get_variable_value(text, &var_name) {
                 Ok(some_var) => {
                     let var_value: String = match some_var {
-                        VariableValueType::String(var_value_str) => var_value_str.to_string(),
-                        VariableValueType::Integer(var_value_number) => {
-                            var_value_number.to_string()
-                        }
-                        VariableValueType::Float(var_value_number) => var_value_number.to_string(),
+                        GuraType::String(var_value_str) => var_value_str.to_string(),
+                        GuraType::Integer(var_value_number) => var_value_number.to_string(),
+                        GuraType::Float(var_value_number) => var_value_number.to_string(),
+                        _ => "".to_string(),
                     };
                     final_string.push_str(&var_value);
                 }
@@ -1020,21 +1044,17 @@ fn eat_ws_and_new_lines(text: &mut Input) {
 * @throws VariableNotDefinedError if the variable is not defined in file nor environment.
 * @returns Variable value.
 */
-fn get_variable_value(text: &mut Input, key: &String) -> Result<VariableValueType, Box<dyn Error>> {
+fn get_variable_value(text: &mut Input, key: &String) -> RuleResult {
     match text.variables.get(key) {
         Some(ref value) => match value {
             VariableValueType::Integer(number_value) => {
-                return Ok(VariableValueType::Integer(*number_value))
+                return Ok(GuraType::Integer(*number_value))
             }
-            VariableValueType::Float(number_value) => {
-                return Ok(VariableValueType::Float(*number_value))
-            }
-            VariableValueType::String(str_value) => {
-                return Ok(VariableValueType::String(str_value.clone()))
-            }
+            VariableValueType::Float(number_value) => return Ok(GuraType::Float(*number_value)),
+            VariableValueType::String(str_value) => return Ok(GuraType::String(str_value.clone())),
         },
         _ => match env::var(key.clone()) {
-            Ok(value) => Ok(VariableValueType::String(value)),
+            Ok(value) => Ok(GuraType::String(value)),
             Err(_) => Err(Box::new(VariableNotDefinedError::new(format!(
                 "Variable '{}' is not defined in Gura nor as environment variable",
                 key
@@ -1107,6 +1127,7 @@ fn variable(text: &mut Input) -> RuleResult {
             ],
         )?;
 
+        // Checks duplicated
         if text.variables.contains_key(&key_value) {
             return Err(Box::new(DuplicatedVariableError::new(format!(
                 "Variable '{}' has been already declared",
@@ -1118,7 +1139,6 @@ fn variable(text: &mut Input) -> RuleResult {
             GuraType::String(var_value) => VariableValueType::String(var_value),
             GuraType::Integer(var_value) => VariableValueType::Integer(var_value),
             GuraType::Float(var_value) => VariableValueType::Float(var_value),
-            GuraType::VariableValue(var_value) => var_value,
             _ => {
                 return Err(Box::new(ParseError::new(
                     text.pos,
@@ -1210,12 +1230,6 @@ fn unquoted_string(text: &mut Input) -> RuleResult {
 * @returns Returns an number or a float depending of type inference.
 */
 fn number(text: &mut Input) -> RuleResult {
-    #[derive(Debug, PartialEq, Eq)]
-    enum NumberType {
-        Integer,
-        Float,
-    }
-
     let acceptable_number_chars: Option<String> = Some(String::from(
         BASIC_NUMBERS_CHARS.to_string() + &HEX_OCT_BIN + &INF_AND_NAN + "Ee+._-",
     ));
@@ -1512,41 +1526,111 @@ fn pair(text: &mut Input) -> RuleResult {
 }
 
 /// Auxiliary function for dumping
-fn dump_content(content: &GuraType, indentation_level: usize) -> String {
-    let mut result = String::new();
-    let indentation = " ".repeat(indentation_level * 4);
+fn dump_content(content: &GuraType, indentation_level: usize, new_line: bool) -> String {
+    let new_line_char = if new_line { "\n" } else { "" };
+
     match content {
-        GuraType::Null => result.add_assign("null"),
-        GuraType::Pair(key, value, _) => result.add_assign(&format!("{}: {}", key, value)),
-        GuraType::Object(values) => {
-            // Only prevents new line in the first level
-            if indentation_level > 0 {
-                result.add_assign("\n");
+        GuraType::Null => format!("null{}", new_line_char),
+        GuraType::String(str_content) => {
+            let escaped = str_content.replace("'", "\\'");
+            format!("'{}'{}", escaped, new_line_char)
+        }
+        GuraType::Integer(number) => format!("{}{}", number, new_line_char),
+        GuraType::Float(number) => {
+            let value: String;
+            if number.is_nan() {
+                value = String::from("nan");
+            } else {
+                if number.is_infinite() {
+                    value = if number.is_sign_positive() {
+                        String::from("inf")
+                    } else {
+                        String::from("-inf")
+                    };
+                } else {
+                    value = number.to_string();
+                }
             }
 
-            for (key, value) in values {
-                result.add_assign(&format!(
-                    "{}{}: {}",
-                    indentation,
-                    key,
-                    dump_content(value, indentation_level + 1)
-                ));
+            format!("{}{}", value, new_line_char)
+        }
+        GuraType::Bool(bool_value) => bool_value.to_string().add(new_line_char),
+        GuraType::Pair(key, value, _) => format!("{}: {}", key, value),
+        GuraType::Object(values) => {
+            let mut result = String::new();
+            let indentation = " ".repeat(indentation_level * 4);
+            for (key, gura_value) in values.iter() {
+                result.push_str(&format!("{}{}:", indentation, key));
+
+                // If it is an object it does not add a whitespace after key
+                match **gura_value {
+                    GuraType::Object(_) => (),
+                    _ => result.push(' '),
+                }
+
+                result.push_str(&dump_content(gura_value, indentation_level + 1, true))
             }
+
+            return "\n".to_string() + &result;
         }
-        GuraType::Bool(bool_value) => result.add_assign(&bool_value.to_string().add("\n")),
-        GuraType::String(str_content) => result.add_assign(&format!("'{}'\n", str_content)),
-        GuraType::Integer(number) => result.add_assign(&format!("{}\n", number)),
-        GuraType::Float(number) => result.add_assign(&format!("{}\n", number)),
+
         GuraType::Array(array) => {
-            // FIXME: prints array in an ugly way
-            result.add_assign("[");
-            let joined = array.iter().join(", ");
-            result.add_assign(&joined);
-            result.add_assign("]\n");
+            // Lists are a special case: if it has an object, and indented representation must be returned. In case
+            // of primitive values or nested arrays, a plain representation is more appropriated
+            let mut list_values: Vec<String> = Vec::with_capacity(array.len());
+            let mut at_least_one_obj = false;
+            for list_elem in array {
+                let is_obj = match **list_elem {
+                    GuraType::Object(_) => true,
+                    _ => false,
+                };
+                let mut str_value = dump_content(list_elem, indentation_level, is_obj);
+
+                // Prevents multiples new lines
+                if is_obj {
+                    str_value = remove_suffix(str_value, "\n");
+                    at_least_one_obj = true;
+                }
+
+                list_values.push(str_value);
+            }
+
+            let mut list_str = String::from("[");
+
+            // If there is at least one object adds an indentation to every non object value
+            let mut list_joined_str: String;
+            if at_least_one_obj {
+                let new_line_regex = Regex::new(r"^\n").unwrap();
+                list_joined_str = String::new();
+                list_str.push('\n');
+                let last_idx = list_values.len() - 1;
+                for (idx, elem) in list_values.iter().enumerate() {
+                    let elem_str: String;
+                    let elem_is_obj = elem.starts_with('\n');
+                    if !elem_is_obj {
+                        elem_str = " ".repeat(4) + elem;
+                    } else {
+                        elem_str = new_line_regex.replace(&elem, "").to_string();
+                    }
+                    list_joined_str.push_str(&elem_str);
+                    if idx != last_idx {
+                        list_joined_str.push_str(",\n");
+                    }
+                }
+            } else {
+                // In case of primitive or nested arrays, just returns a plain representation
+                list_joined_str = list_values.iter().cloned().join(", ");
+            }
+            list_str.push_str(&list_joined_str);
+
+            // Adds a last new line to append closing bracket
+            if at_least_one_obj {
+                list_str.push('\n');
+            }
+            list_str.add("]").add(new_line_char)
         }
-        _ => (),
-    };
-    result
+        _ => String::new(),
+    }
 }
 
 /**
@@ -1556,5 +1640,5 @@ fn dump_content(content: &GuraType, indentation_level: usize) -> String {
  * @returns String with the data in Gura format.
  */
 pub fn dump(content: &GuraType) -> String {
-    dump_content(content, 0)
+    dump_content(content, 0, true).trim().to_string()
 }

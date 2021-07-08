@@ -1,9 +1,9 @@
 use gura_rs::{
-    errors::{DuplicatedVariableError, VariableNotDefinedError},
+    errors::{DuplicatedVariableError, ParseError, VariableNotDefinedError},
     object,
     parser::{parse, GuraType},
 };
-use std::{env, string::ParseError};
+use std::env;
 mod common;
 
 fn get_expected() -> GuraType {
