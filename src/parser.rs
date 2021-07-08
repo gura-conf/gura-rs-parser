@@ -106,6 +106,7 @@ pub enum GuraType {
     Bool(bool),
     String(String),
     Integer(isize),
+    BigInteger(i128),
     Float(f64),
     Array(Vec<Box<GuraType>>),
     WsOrNewLine,
@@ -174,6 +175,21 @@ impl PartialEq<isize> for GuraType {
 }
 
 impl PartialEq<GuraType> for isize {
+    fn eq(&self, other: &GuraType) -> bool {
+        other.eq(self)
+    }
+}
+
+impl PartialEq<i128> for GuraType {
+    fn eq(&self, other: &i128) -> bool {
+        match self {
+            &GuraType::BigInteger(value) => value == *other,
+            _ => false,
+        }
+    }
+}
+
+impl PartialEq<GuraType> for i128 {
     fn eq(&self, other: &GuraType) -> bool {
         other.eq(self)
     }
@@ -1295,6 +1311,11 @@ fn number(text: &mut Input) -> RuleResult {
             if number_type == NumberType::Integer {
                 if let Ok(value) = result.parse::<isize>() {
                     return Ok(GuraType::Integer(value));
+                } else {
+                    // Tries 128 bit integer
+                    if let Ok(value) = result.parse::<i128>() {
+                        return Ok(GuraType::BigInteger(value));
+                    }
                 }
             } else {
                 if number_type == NumberType::Float {
@@ -1536,6 +1557,7 @@ fn dump_content(content: &GuraType, indentation_level: usize, new_line: bool) ->
             format!("'{}'{}", escaped, new_line_char)
         }
         GuraType::Integer(number) => format!("{}{}", number, new_line_char),
+        GuraType::BigInteger(number) => format!("{}{}", number, new_line_char),
         GuraType::Float(number) => {
             let value: String;
             if number.is_nan() {
@@ -1548,7 +1570,7 @@ fn dump_content(content: &GuraType, indentation_level: usize, new_line: bool) ->
                         String::from("-inf")
                     };
                 } else {
-                    value = number.to_string();
+                    value = format!("{:?}", number);
                 }
             }
 
