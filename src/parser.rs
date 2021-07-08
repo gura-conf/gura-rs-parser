@@ -2,9 +2,9 @@ use crate::errors::{
     DuplicatedImportError, DuplicatedKeyError, DuplicatedVariableError, FileNotFoundError,
     InvalidIndentationError, ParseError, ValueError, VariableNotDefinedError,
 };
+use indexmap::IndexMap;
 use itertools::Itertools;
 use regex::Regex;
-use std::collections::hash_map::{Iter, IterMut};
 use std::fs;
 use std::path::Path;
 use std::{
@@ -99,10 +99,9 @@ pub enum GuraType {
     Import(String),
     /// Indicates matching with a variable definition
     Variable,
-    // TODO: check https://docs.rs/indexmap/1.7.0/indexmap/map/struct.IndexMap.html
-    // as it preserves the order of insertion
-    ObjectWithWs(HashMap<String, Box<GuraType>>, usize),
-    Object(HashMap<String, Box<GuraType>>),
+    // Uses IndexMap as it preserves the order of insertion
+    ObjectWithWs(IndexMap<String, Box<GuraType>>, usize),
+    Object(IndexMap<String, Box<GuraType>>),
     Bool(bool),
     String(String),
     Integer(isize),
@@ -256,14 +255,14 @@ impl PartialEq<GuraType> for String {
 }
 
 impl GuraType {
-    pub fn iter(&self) -> Result<Iter<'_, String, Box<GuraType>>, &str> {
+    pub fn iter(&self) -> Result<indexmap::map::Iter<'_, String, Box<GuraType>>, &str> {
         match self {
             GuraType::Object(hash_map) => Ok(hash_map.iter()),
             _ => Err("This struct is not an object"),
         }
     }
 
-    pub fn iter_mut(&mut self) -> Result<IterMut<'_, String, Box<GuraType>>, &str> {
+    pub fn iter_mut(&mut self) -> Result<indexmap::map::IterMut<'_, String, Box<GuraType>>, &str> {
         match self {
             GuraType::Object(hash_map) => Ok(hash_map.iter_mut()),
             _ => Err("This struct is not an object"),
@@ -921,7 +920,7 @@ pub fn parse(text: &String) -> RuleResult {
     // Only objects are valid as final result
     match result {
         GuraType::ObjectWithWs(values, _) => Ok(GuraType::Object(values)),
-        _ => Ok(GuraType::Object(HashMap::new())),
+        _ => Ok(GuraType::Object(IndexMap::new())),
     }
 }
 
@@ -1415,7 +1414,7 @@ fn literal_string(text: &mut Input) -> RuleResult {
  * @returns Object with Gura string data.
  */
 fn object(text: &mut Input) -> RuleResult {
-    let mut result: HashMap<String, Box<GuraType>> = HashMap::new();
+    let mut result: IndexMap<String, Box<GuraType>> = IndexMap::new();
     let mut indentation_level = 0;
     while text.pos < text.len {
         match maybe_match(

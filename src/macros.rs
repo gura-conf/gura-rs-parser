@@ -102,7 +102,7 @@ macro_rules! value {
 #[macro_export]
 macro_rules! object {
     // Empty object.
-    {} => ($crate::parser::GuraType::Object(std::collections::HashMap::new()));
+    {} => ($crate::parser::GuraType::Object(indexmap::IndexMap::new()));
 
     // Handles for different types of keys
     (@ENTRY($( $k:expr => $v:expr, )*) $key:ident: $( $cont:tt )*) => {
@@ -148,7 +148,7 @@ macro_rules! object {
     (@END $( $k:expr => $v:expr, )*) => ({
         let size = 0 $( + {let _ = &$k; 1} )*;
         // let mut object = $crate::object::Object::with_capacity(size);
-        let mut object: std::collections::HashMap<std::string::String, Box<GuraType>> = std::collections::HashMap::new();
+        let mut object: indexmap::IndexMap<std::string::String, Box<GuraType>> = indexmap::IndexMap::new();
 
         $(
             object.insert($k.to_string(), Box::new($v));
