@@ -1,5 +1,5 @@
 [package]
-name = "gura-rs"
+name = "gura"
 version = "0.1.0"
 authors = ["JWare Solutions <jware.organization@gmail.com>"]
 edition = "2018"
