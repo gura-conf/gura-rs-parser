@@ -2,6 +2,7 @@ use crate::errors::{
     DuplicatedImportError, DuplicatedKeyError, DuplicatedVariableError, FileNotFoundError,
     InvalidIndentationError, ParseError, ValueError, VariableNotDefinedError,
 };
+use crate::pretty_print_float::PrettyPrintFloatWithFallback;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use regex::Regex;
@@ -1569,7 +1570,7 @@ fn dump_content(content: &GuraType, indentation_level: usize, new_line: bool) ->
                         String::from("-inf")
                     };
                 } else {
-                    value = format!("{:?}", number);
+                    value = format!("{}", PrettyPrintFloatWithFallback(*number));
                 }
             }
 

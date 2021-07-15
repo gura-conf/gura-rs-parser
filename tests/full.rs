@@ -1,5 +1,9 @@
-use std::f64::{NAN, INFINITY, NEG_INFINITY};
-use gura_rs::{errors::ParseError, object, parser::{GuraType, dump, parse}};
+use gura::{
+    errors::ParseError,
+    object,
+    parser::{dump, parse, GuraType},
+};
+use std::f64::{INFINITY, NAN, NEG_INFINITY};
 mod common;
 
 fn get_expected() -> GuraType {
@@ -79,7 +83,6 @@ fn get_expected() -> GuraType {
     }
 }
 
-
 const PARENT_FOLDER: &str = "full";
 
 #[test]
@@ -122,14 +125,14 @@ fn test_dumps_nan() {
 /// Tests empty Gura documents
 fn test_empty() {
     let parsed_data = parse(&"".to_string()).unwrap();
-    assert_eq!(parsed_data, object!{});
+    assert_eq!(parsed_data, object! {});
 }
 
 #[test]
 /// Tests empty Gura documents, even when some data is defined
 fn test_empty_2() {
     let parsed_data = parse(&"$unused_var: 5".to_string()).unwrap();
-    assert_eq!(parsed_data, object!{});
+    assert_eq!(parsed_data, object! {});
 }
 
 #[test]

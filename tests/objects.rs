@@ -1,4 +1,4 @@
-use gura_rs::{
+use gura::{
     errors::{InvalidIndentationError, ParseError},
     object,
     parser::GuraType,

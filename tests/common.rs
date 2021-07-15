@@ -1,4 +1,4 @@
-use gura_rs::parser::{parse, GuraType};
+use gura::parser::{parse, GuraType};
 use std::fs;
 
 /// Reads a file located in tests/{parent_folder}/tests-files/{file_path} and parses its

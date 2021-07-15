@@ -9,6 +9,7 @@ itertools = "0.10.1"
 unicode-segmentation = "1.7.1"
 regex = "1.5.4"
 indexmap = "1.7.0"
+float-pretty-print = "0.1.0"
 
 [dev-dependencies]
 tempfile = "3.2.0"

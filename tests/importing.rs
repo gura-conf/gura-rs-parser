@@ -1,4 +1,4 @@
-use gura_rs::{
+use gura::{
     errors::{
         DuplicatedImportError, DuplicatedKeyError, DuplicatedVariableError, FileNotFoundError,
         ParseError,

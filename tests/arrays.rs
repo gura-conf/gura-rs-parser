@@ -1,4 +1,4 @@
-use gura_rs::{object, parser::GuraType};
+use gura::{object, parser::GuraType};
 mod common;
 
 fn get_expected() -> GuraType {

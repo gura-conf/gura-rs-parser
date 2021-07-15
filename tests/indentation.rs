@@ -1,4 +1,4 @@
-use gura_rs::errors::InvalidIndentationError;
+use gura::errors::InvalidIndentationError;
 mod common;
 
 const PARENT_FOLDER: &str = "indentation";

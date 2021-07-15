@@ -1,6 +1,6 @@
 use std::env;
 
-use gura_rs::{
+use gura::{
     errors::VariableNotDefinedError,
     object,
     parser::{parse, GuraType},

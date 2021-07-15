@@ -1,4 +1,4 @@
-use gura_rs::{
+use gura::{
     errors::{DuplicatedVariableError, ParseError, VariableNotDefinedError},
     object,
     parser::{parse, GuraType},
