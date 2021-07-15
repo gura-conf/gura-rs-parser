@@ -2,6 +2,9 @@
 
 This repository contains the implementation of a [Gura][gura] (compliant with version 1.0.0) format parser for Rust lang.
 
+**[Documentation](https://docs.rs/gura/) -**
+**[Cargo](https://crates.io/crates/gura) -**
+
 
 ## Installation
 
