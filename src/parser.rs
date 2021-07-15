@@ -82,35 +82,49 @@ impl PartialEq for VariableValueType {
 
 /// Defines all the possible types for a variable: numbers or strings
 #[derive(Debug, Clone)]
-pub enum VariableValueType {
+enum VariableValueType {
     String(String),
     Integer(isize),
     Float(f64),
 }
 
-/// Data types to be returned by match expression methods
-// TODO: Rename to Value
+/// Data types to be returned by match expression methods.
 #[derive(Debug, Clone, PartialEq)]
 pub enum GuraType {
+    /// Null values.
     Null,
+    /// Indentation (intended to be used internally).
     Indentation(usize),
+    /// An empty line (intended to be used internally).
     UselessLine,
+    /// Pair of key/value. (intended to be used internally. Users normally uses Object to map key/values).
     Pair(String, Box<GuraType>, usize),
+    /// Comment (intended to be used internally).
     Comment,
+    /// Importing sentence (intended to be used internally).
     Import(String),
-    /// Indicates matching with a variable definition
+    /// Indicates matching with a variable definition (intended to be used internally).
     Variable,
     // Uses IndexMap as it preserves the order of insertion
+    /// Object with information about indentation (intended to be used internally).
     ObjectWithWs(IndexMap<String, Box<GuraType>>, usize),
+    /// Object with its key/value pairs.
     Object(IndexMap<String, Box<GuraType>>),
+    /// Boolean values.
     Bool(bool),
+    /// String values.
     String(String),
+    /// Integer values.
     Integer(isize),
+    /// Big integer values.
     BigInteger(i128),
+    /// Float values.
     Float(f64),
+    /// List of Gura values.
     Array(Vec<Box<GuraType>>),
+    /// Spaces or new line characters (intended to be used internally).
     WsOrNewLine,
-    /// Indicates the ending of an object
+    /// Indicates the ending of an object (intended to be used internally).
     BreakParent,
 }
 
@@ -180,9 +194,42 @@ impl PartialEq<GuraType> for isize {
     }
 }
 
+impl PartialEq<i32> for GuraType {
+    fn eq(&self, other: &i32) -> bool {
+        match self {
+            &GuraType::Integer(value) => (value as i32) == *other,
+            &GuraType::BigInteger(value) => (value as i32) == *other,
+            _ => false,
+        }
+    }
+}
+
+impl PartialEq<GuraType> for i32 {
+    fn eq(&self, other: &GuraType) -> bool {
+        other.eq(self)
+    }
+}
+
+impl PartialEq<i64> for GuraType {
+    fn eq(&self, other: &i64) -> bool {
+        match self {
+            &GuraType::Integer(value) => (value as i64) == *other,
+            &GuraType::BigInteger(value) => (value as i64) == *other,
+            _ => false,
+        }
+    }
+}
+
+impl PartialEq<GuraType> for i64 {
+    fn eq(&self, other: &GuraType) -> bool {
+        other.eq(self)
+    }
+}
+
 impl PartialEq<i128> for GuraType {
     fn eq(&self, other: &i128) -> bool {
         match self {
+            &GuraType::Integer(value) => (value as i128) == *other,
             &GuraType::BigInteger(value) => value == *other,
             _ => false,
         }
@@ -300,11 +347,11 @@ impl Input {
         }
     }
 
-    /**
-    	* Sets the params to start parsing from a specific text.
-    	*
-    	* @param text - Text to set as the internal text to be parsed.
-    	*/
+    /// Sets the params to start parsing from a specific text.
+    ///
+    /// # Arguments
+    ///
+    /// * text - Text to set as the internal text to be parsed.
     fn restart_params(&mut self, text: &String) {
         let graph = get_graphemes_cluster(text);
         self.text = graph;
@@ -313,9 +360,7 @@ impl Input {
         self.len = self.text.len();
     }
 
-    /**
-     * Removes, if exists, the last indentation level.
-     */
+    /// Removes, if exists, the last indentation level.
     fn remove_last_indentation_level(&mut self) {
         if self.indentation_levels.len() > 0 {
             self.indentation_levels.pop();
@@ -330,11 +375,7 @@ fn get_graphemes_cluster(text: &String) -> Vec<String> {
         .collect()
 }
 
-/**
-* Computes imports and matches the first expression of the file.Finally consumes all the useless lines.
-*
-* @returns Dict with all the extracted values from Gura string.
-*/
+/// Computes imports and matches the first expression of the file.Finally consumes all the useless lines.
 fn start(text: &mut Input) -> RuleResult {
     compute_imports(text, None)?;
     let result = matches(text, vec![Box::new(object)])?;
@@ -342,12 +383,7 @@ fn start(text: &mut Input) -> RuleResult {
     Ok(result)
 }
 
-/**
- * Matches with any primitive or complex type.
- *
- * @returns The corresponding matched value.
- */
-
+/// Matches with any primitive or complex type.
 fn any_type(text: &mut Input) -> RuleResult {
     let result = maybe_match(text, vec![Box::new(primitive_type)])?;
 
@@ -358,11 +394,7 @@ fn any_type(text: &mut Input) -> RuleResult {
     }
 }
 
-/**
- * Matches with a primitive value: null, bool, strings(all of the four kind of string), number or variables values.
- *
- * @returns The corresponding matched value.
- */
+/// Matches with a primitive value: null, bool, strings(all of the four kind of string), number or variables values.
 fn primitive_type(text: &mut Input) -> RuleResult {
     maybe_match(text, vec![Box::new(ws)])?;
     matches(
@@ -378,12 +410,8 @@ fn primitive_type(text: &mut Input) -> RuleResult {
     )
 }
 
-/**
-* Matches with a useless line.A line is useless when it contains only whitespaces and / or a comment finishing in a new line.
-*
-* @throws ParseError if the line contains valid data.
-* @returns MatchResult indicating the presence of a useless line.
-*/
+/// Matches with a useless line. A line is useless when it contains only whitespaces
+/// and/or a comment finishing in a new line.
 fn useless_line(text: &mut Input) -> RuleResult {
     matches(text, vec![Box::new(ws)])?;
     let comment = maybe_match(text, vec![Box::new(comment)])?;
@@ -403,40 +431,24 @@ fn useless_line(text: &mut Input) -> RuleResult {
     Ok(GuraType::UselessLine)
 }
 
-/**
-* Matches with a list or another complex expression.
-*
-* @returns List or Dict, depending the correct matching.
-*/
+/// Matches with a list or an object.
 fn complex_type(text: &mut Input) -> RuleResult {
     matches(text, vec![Box::new(list), Box::new(object)])
 }
 
-/**
-* Consumes null keyword and return null.
-*
-* @returns Null.
-*/
+/// Consumes `null` keyword and return null.
 fn null(text: &mut Input) -> RuleResult {
     keyword(text, &vec!["null"])?;
     Ok(GuraType::Null)
 }
 
-/**
-* Parses boolean values.
-*
-* @returns Matched boolean value.
-*/
+/// Matches boolean values.
 fn boolean(text: &mut Input) -> RuleResult {
     let value = keyword(text, &vec!["true", "false"])? == "true";
     Ok(GuraType::Bool(value))
 }
 
-/**
- * Matches with a simple / multiline basic string.
- *
- * @returns Matched string.
- */
+/// Matches with a simple / multiline basic string.
 fn basic_string(text: &mut Input) -> RuleResult {
     let quote = keyword(text, &vec!["\"\"\"", "\""])?;
 
@@ -520,11 +532,7 @@ fn basic_string(text: &mut Input) -> RuleResult {
     Ok(GuraType::String(final_string))
 }
 
-/**
- * Gets a variable name char by char.
- *
- * @returns Variable name.
- */
+/// Gets a variable name char by char.
 fn get_var_name(text: &mut Input) -> Result<String, Box<dyn Error>> {
     let key_acceptable_chars = Some(String::from(KEY_ACCEPTABLE_CHARS));
     let mut var_name = String::new();
@@ -544,15 +552,14 @@ fn remove_suffix(source: String, suffix_to_replace: &str) -> String {
     }
 }
 
-/**
-* Computes all the import sentences in Gura file taking into consideration relative paths to imported files.
-*
-* @param parentDirPath - Current parent directory path to join with imported files.
-* @param importedFiles - Set with already imported files to raise an error in case of importing the same file
-more than once.
-* @returns Set with imported files after all the imports to reuse in the importation process of the imported
-Gura files.
-*/
+/// Computes all the import sentences in Gura file taking into consideration relative paths to imported files.
+///
+/// # Arguments
+///
+/// * parentDirPath - Current parent directory path to join with imported files.
+/// * importedFiles - Set with already imported files to raise an error in case of importing the same file more than once.
+///
+/// Returns a set with imported files after all the imports to reuse in the importation process of the imported Gura files.
 fn compute_imports(
     text: &mut Input,
     parent_dir_path: Option<String>,
@@ -633,11 +640,7 @@ fn compute_imports(
     return Ok(());
 }
 
-/**
- * Matches with an already defined variable and gets its value.
- *
- * @returns Variable value.
- */
+/// Matches with an already defined variable and gets its value.
 fn variable_value(text: &mut Input) -> RuleResult {
     // TODO: consider using char(text, vec![String::from("\"")])
     keyword(text, &vec!["$"])?;
@@ -656,8 +659,11 @@ fn variable_value(text: &mut Input) -> RuleResult {
     }
 }
 
-/// Checks that the parser has reached the end of file, otherwise it will raise a ParseError
-/// :raise: ParseError if EOL has not been reached
+/// Checks that the parser has reached the end of file, otherwise it will raise a `ParseError`.
+///
+/// # Errors
+///
+/// * ParseError - If EOL has not been reached.
 fn assert_end(text: &mut Input) -> Result<(), ParseError> {
     if text.pos < text.len {
         Err(ParseError::new(
@@ -676,9 +682,9 @@ fn get_string_from_slice(slice: &[String]) -> String {
     slice.iter().cloned().collect()
 }
 
-/// Generates a list of char from a list of char which could container char ranges (i.e. a-z or 0-9)
-/// :param chars: List of chars to process
-/// returns Vec of Grapheme clusters vectors
+/// Generates a list of char from a list of char which could container char ranges (i.e. a-z or 0-9).
+///
+/// Returns a Vec of Grapheme clusters vectors.
 fn split_char_ranges(text: &mut Input, chars: &String) -> Result<Vec<Vec<String>>, ValueError> {
     if text.cache.contains_key(chars) {
         return Ok(text.cache.get(chars).unwrap().to_vec());
@@ -709,10 +715,9 @@ fn split_char_ranges(text: &mut Input, chars: &String) -> Result<Vec<Vec<String>
     Ok(result)
 }
 
-/// Matches a list of specific chars and returns the first that matched. If any matched, it will raise a ParseError
-/// :param chars: Chars to match. If it is None, it will return the next char in text
-/// :raise: ParseError if any of the specified char (i.e. if chars != None) matched
-/// :return: Matched char
+/// Matches a list of specific chars and returns the first that matched. If any matched, it will raise a `ParseError`.
+///
+/// `chars` argument can be a range like "a-zA-Z" and they will be properly handled.
 fn char(text: &mut Input, chars: &Option<String>) -> Result<String, Box<dyn Error>> {
     if text.pos >= text.len {
         return Err(Box::new(ParseError::new(
@@ -770,10 +775,7 @@ fn char(text: &mut Input, chars: &Option<String>) -> Result<String, Box<dyn Erro
     }
 }
 
-/// Matches specific keywords
-/// :param keywords: Keywords to match
-/// :raise: ParseError if any of the specified keywords matched
-/// :return: The first matched keyword
+/// Matches specific keywords. If any matched, it will raise a `ParseError`.
 fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Error>> {
     if text.pos >= text.len {
         return Err(Box::new(ParseError::new(
@@ -812,11 +814,9 @@ fn keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<String, Box<dyn Err
     )))
 }
 
-/// Matches specific rules which name must be implemented as a method in corresponding parser. A rule does not match
-/// if its method raises ParseError
-/// :param rules: Rules to match
-/// :raise: ParseError if any of the specified rules matched
-/// :return: The first matched rule method's result
+/// Matches specific rules. A rule does not match if its method raises `ParseError`.
+///
+/// Returns the first matched rule method's result.
 fn matches(text: &mut Input, rules: Rules) -> RuleResult {
     let mut last_error_pos: Option<usize> = None;
     let mut last_exception: Option<Box<dyn Error>> = None;
@@ -846,10 +846,8 @@ fn matches(text: &mut Input, rules: Rules) -> RuleResult {
     Err(last_exception.unwrap())
 }
 
-/// Like char() but returns None instead of raising ParseError
-/// :param chars: Chars to match. If it is None, it will return the next char in text
-/// :return: Char if matched, None otherwise
 // TODO: consider changing chars: &Option<&str>
+/// Like char() but returns None instead of raising ParseError
 fn maybe_char(text: &mut Input, chars: &Option<String>) -> Result<Option<String>, Box<dyn Error>> {
     match char(text, chars) {
         Err(e) => {
@@ -864,8 +862,6 @@ fn maybe_char(text: &mut Input, chars: &Option<String>) -> Result<Option<String>
 }
 
 /// Like match() but returns None instead of raising ParseError
-/// :param rules: Rules to match
-/// :return: Rule result if matched, None otherwise
 fn maybe_match(text: &mut Input, rules: Rules) -> Result<Option<GuraType>, Box<dyn Error>> {
     match matches(text, rules) {
         Err(e) => {
@@ -880,8 +876,6 @@ fn maybe_match(text: &mut Input, rules: Rules) -> Result<Option<GuraType>, Box<d
 }
 
 /// Like keyword() but returns None instead of raising ParseError
-/// :param keywords: Keywords to match
-/// :return: Keyword if matched, None otherwise
 fn maybe_keyword(text: &mut Input, keywords: &Vec<&str>) -> Result<Option<String>, Box<dyn Error>> {
     match keyword(text, keywords) {
         Err(e) => {
@@ -905,13 +899,37 @@ fn object_ws_to_simple_object(object: GuraType) -> GuraType {
     }
 }
 
-/**
- * Parses a text in Gura format.
- *
- * @param text - Text to be parsed.
- * @throws ParseError if the syntax of text is invalid.
- * @returns Result with all the parsed values.
- */
+/// Parses a text in Gura format.
+///
+/// # Examples
+///
+/// ```
+/// use gura::parse;
+///
+/// let gura_string = "
+/// title: \"Gura Example\"
+/// number: 13.4
+/// an_object:
+///     name: \"John\"
+///     surname: \"Wick\"
+///     has_pet: false
+/// ".to_string();
+///
+/// let parsed = parse(&gura_string).unwrap();
+///
+/// assert_eq!("Gura Example", parsed["title"]);
+/// assert_eq!(13.4, parsed["number"]);
+///
+/// let obj = &parsed["an_object"];
+/// assert_eq!("John", obj["name"]);
+/// assert_eq!("Wick", obj["surname"]);
+/// assert_eq!(false, obj["has_pet"]);
+/// ```
+///
+/// # Errors
+///
+/// This function could throw any kind of error listed
+/// in [Gura specs](https://gura.netlify.app/docs/gura#standard-errors).
 pub fn parse(text: &String) -> RuleResult {
     let text_parser: &mut Input = &mut Input::new();
     text_parser.restart_params(text);
@@ -940,11 +958,7 @@ fn new_line(text: &mut Input) -> RuleResult {
     Ok(GuraType::WsOrNewLine)
 }
 
-/**
-* Matches with a comment.
-*
-* @returns MatchResult indicating the presence of a comment.
-*/
+/// Matches with a comment.
 fn comment(text: &mut Input) -> RuleResult {
     keyword(text, &vec!["#"])?;
     while text.pos < text.len {
@@ -959,11 +973,7 @@ fn comment(text: &mut Input) -> RuleResult {
     Ok(GuraType::Comment)
 }
 
-/**
-* Matches with white spaces taking into consideration indentation levels.
-*
-* @returns Indentation level.
-*/
+/// Matches with white spaces taking into consideration indentation levels.
 fn ws_with_indentation(text: &mut Input) -> RuleResult {
     let mut current_indentation_level = 0;
 
@@ -987,9 +997,7 @@ fn ws_with_indentation(text: &mut Input) -> RuleResult {
     Ok(GuraType::Indentation(current_indentation_level))
 }
 
-/**
-* Matches white spaces (blanks and tabs).
-*/
+/// Matches white spaces (blanks and tabs).
 fn ws(text: &mut Input) -> RuleResult {
     while maybe_keyword(text, &vec![" ", "\t"])?.is_some() {
         continue;
@@ -998,12 +1006,8 @@ fn ws(text: &mut Input) -> RuleResult {
     Ok(GuraType::WsOrNewLine)
 }
 
-/**
-* Matches with a quoted string(with a single quotation mark) taking into consideration a variable inside it.
-* There is no special character escaping here.
-*
-* @returns Matched string.
-*/
+/// Matches with a quoted string(with a single quotation mark) taking into consideration a variable inside it.
+/// There is no special character escaping here.
 fn quoted_string_with_var(text: &mut Input) -> RuleResult {
     // TODO: consider using char(text, vec![String::from("\"")])
     let quote = keyword(text, &vec!["\""])?;
@@ -1043,9 +1047,7 @@ fn quoted_string_with_var(text: &mut Input) -> RuleResult {
     Ok(GuraType::String(final_string))
 }
 
-/**
-* Consumes all the whitespaces and new lines.
-*/
+/// Consumes all the whitespaces and new lines.
 fn eat_ws_and_new_lines(text: &mut Input) {
     let ws_and_new_lines_chars = Some(" ".to_owned() + NEW_LINE_CHARS);
     while let Ok(Some(_)) = maybe_char(text, &ws_and_new_lines_chars) {
@@ -1053,13 +1055,15 @@ fn eat_ws_and_new_lines(text: &mut Input) {
     }
 }
 
-/**
-* Gets a variable value for a specific key from defined variables in file or as environment variable.
-*
-* @param key - Key to retrieve.
-* @throws VariableNotDefinedError if the variable is not defined in file nor environment.
-* @returns Variable value.
-*/
+/// Gets a variable value for a specific key from defined variables in file or as environment variable.
+///
+/// # Arguments
+///
+/// * key - Key to retrieve.
+///
+/// # Errors
+///
+/// * VariableNotDefinedError - If the variable is not defined in file nor environment.
 fn get_variable_value(text: &mut Input, key: &String) -> RuleResult {
     match text.variables.get(key) {
         Some(ref value) => match value {
@@ -1079,14 +1083,14 @@ fn get_variable_value(text: &mut Input, key: &String) -> RuleResult {
     }
 }
 
-/**
-* Gets final text taking in consideration imports in original text.
-*
-* @param originalText - Text to be parsed.
-* @param parentDirPath - Parent directory to keep relative paths reference.
-* @param importedFiles - Set with imported files to check if any was imported more than once.
-* @returns Final text with imported files' text on it and a HashSet with imported files.
-*/
+/// Gets final text taking in consideration imports in original text.
+/// Returns Final text with imported files' text on it and a HashSet with imported files.
+///
+/// # Arguments
+///
+/// * originalText - Text to be parsed.
+/// * parentDirPath - Parent directory to keep relative paths reference.
+/// * importedFiles - Set with imported files to check if any was imported more than once.
 fn get_text_with_imports(
     text: &mut Input,
     original_text: &String,
@@ -1097,11 +1101,7 @@ fn get_text_with_imports(
     Ok(text.text.clone())
 }
 
-/**
-* Matches import sentence.
-*
-* @returns MatchResult with file name of imported file.
-*/
+/// Matches import sentence.
 fn gura_import(text: &mut Input) -> RuleResult {
     keyword(text, &vec!["import"])?;
     char(text, &Some(String::from(" ")))?;
@@ -1120,12 +1120,11 @@ fn gura_import(text: &mut Input) -> RuleResult {
     }
 }
 
-/**
- * Matches with a variable definition.
- *
- * @throws DuplicatedVariableError if the current variable has been already defined.
- * @returns Match result indicating that a variable has been added.
- */
+/// Matches with a variable definition. Returns a Match result indicating that a variable has been added.
+///
+/// # Errors
+///
+/// * DuplicatedVariableError - If the current variable has been already defined.
 fn variable(text: &mut Input) -> RuleResult {
     keyword(text, &vec!["$"])?;
     let matched_key = matches(text, vec![Box::new(key)])?;
@@ -1176,12 +1175,11 @@ fn variable(text: &mut Input) -> RuleResult {
     }
 }
 
-/**
-* Matches with a key.A key is an unquoted string followed by a colon (:).
-*
-* @throws ParseError if key is not a valid string.
-* @returns Matched key.
-*/
+/// Matches with a key.A key is an unquoted string followed by a colon (:).
+///
+/// # Errors
+///
+/// * ParseError - If key is not a valid string.
 fn key(text: &mut Input) -> RuleResult {
     let matched_key = matches(text, vec![Box::new(unquoted_string)]);
 
@@ -1190,20 +1188,17 @@ fn key(text: &mut Input) -> RuleResult {
         keyword(text, &vec![":"])?;
         matched_key
     } else {
+        let min_position = text.pos.min(text.len - 1);
         Err(Box::new(ParseError::new(
             // text.pos + 1,
             text.pos,
             text.line,
-            format!("Expected string but got '{}'", text.text[text.pos]),
+            format!("Expected string but got '{}'", text.text[min_position]),
         )))
     }
 }
 
-/**
-* Gets the last indentation level or null in case it does not exist.
-*
-* @returns Last indentation level or null if it does not exist.
-*/
+/// Gets the last indentation level or null in case it does not exist.
 fn get_last_indentation_level(text: &mut Input) -> Option<usize> {
     if text.indentation_levels.len() == 0 {
         None
@@ -1212,11 +1207,7 @@ fn get_last_indentation_level(text: &mut Input) -> Option<usize> {
     }
 }
 
-/**
- * Parses an unquoted string.Useful for keys.
- *
- * @returns Parsed unquoted string.
- */
+/// Parses an unquoted string.Useful for keys.
 fn unquoted_string(text: &mut Input) -> RuleResult {
     let key_acceptable_chars = Some(String::from(KEY_ACCEPTABLE_CHARS));
     let mut chars = vec![char(text, &key_acceptable_chars)?];
@@ -1239,12 +1230,11 @@ fn unquoted_string(text: &mut Input) -> RuleResult {
     Ok(GuraType::String(trimmed_str))
 }
 
-/**
-* Parses a string checking if it is a number and get its correct value.
-*
-* @throws ParseError if the extracted string is not a valid number.
-* @returns Returns an number or a float depending of type inference.
-*/
+/// Parses a string checking if it is a number and get its correct value.
+///
+/// # Errors
+///
+/// * ParseError - If the extracted string is not a valid number.
 fn number(text: &mut Input) -> RuleResult {
     let acceptable_number_chars: Option<String> = Some(String::from(
         BASIC_NUMBERS_CHARS.to_string() + &HEX_OCT_BIN + &INF_AND_NAN + "Ee+._-",
@@ -1335,11 +1325,7 @@ fn number(text: &mut Input) -> RuleResult {
     }
 }
 
-/**
- * Matches with a list.
- *
- * @returns Matched list.
- */
+/// Matches with a list.
 fn list(text: &mut Input) -> RuleResult {
     let mut result: Vec<Box<GuraType>> = Vec::new();
 
@@ -1377,11 +1363,7 @@ fn list(text: &mut Input) -> RuleResult {
     Ok(GuraType::Array(result))
 }
 
-/**
-* Matches with a simple / multiline literal string.
-*
-* @returns Matched string.
-*/
+/// Matches with a simple/multiline literal string.
 fn literal_string(text: &mut Input) -> RuleResult {
     let quote = keyword(text, &vec!["'''", "'"])?;
 
@@ -1408,12 +1390,11 @@ fn literal_string(text: &mut Input) -> RuleResult {
     Ok(GuraType::String(final_string))
 }
 
-/**
- * Match any Gura expression.
- *
- * @throws DuplicatedKeyError if any of the defined key was declared more than once.
- * @returns Object with Gura string data.
- */
+/// Matches with a Gura object.
+///
+/// # Errors
+///
+/// * DuplicatedKeyError - If any of the defined key was declared more than once.
 fn object(text: &mut Input) -> RuleResult {
     let mut result: IndexMap<String, Box<GuraType>> = IndexMap::new();
     let mut indentation_level = 0;
@@ -1452,11 +1433,7 @@ fn object(text: &mut Input) -> RuleResult {
     }
 }
 
-/**
- * Matches with a key - value pair taking into consideration the indentation levels.
- *
- * @returns Matched key - value pair.null if the indentation level is lower than the last one(to indicate the ending of a parent object).
- */
+/// Matches with a key - value pair taking into consideration the indentation levels.
 fn pair(text: &mut Input) -> RuleResult {
     let pos_before_pair = text.pos;
 
@@ -1655,12 +1632,32 @@ fn dump_content(content: &GuraType, indentation_level: usize, new_line: bool) ->
     }
 }
 
-/**
- * Generates a Gura string from a dictionary(aka.stringify).
- *
- * @param data - Object to stringify.
- * @returns String with the data in Gura format.
- */
+/// Generates a Gura string from a GuraType (aka.stringify).
+///
+/// # Examples
+///
+/// ```
+/// use gura::{object, dump, GuraType};
+///
+/// let object = object! {
+///     a_number: 55,
+///     nested: {
+///         array: [1, 2, 3],
+///         nested_ar: [1, [2, 3], 4]
+///     },
+///     a_string: "Gura Rust"
+/// };
+///
+/// let stringified = dump(&object);
+///
+/// let expected = "a_number: 55
+/// nested:
+///     array: [1, 2, 3]
+///     nested_ar: [1, [2, 3], 4]
+/// a_string: 'Gura Rust'";
+///
+/// assert_eq!(stringified, expected);
+/// ```
 pub fn dump(content: &GuraType) -> String {
     dump_content(content, 0, true).trim().to_string()
 }
