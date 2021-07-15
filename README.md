@@ -1,5 +1,7 @@
 # Gura Rust parser
 
+[![Rust](https://github.com/gura-conf/gura-rs-parser/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/gura-conf/gura-rs-parser/actions/workflows/rust.yml)
+
 This repository contains the implementation of a [Gura][gura] (compliant with version 1.0.0) format parser for Rust lang.
 
 **[Documentation](https://docs.rs/gura/) -**
