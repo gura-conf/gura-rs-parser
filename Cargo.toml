@@ -4,6 +4,7 @@ description = "A Gura configuration language serializer/deserializer for Rust"
 version = "0.1.0"
 authors = ["JWare Solutions <jware.organization@gmail.com>"]
 repository = "https://github.com/gura-conf/gura-rs-parser"
+documentation = "https://docs.rs/gura/0.1.0/gura/"
 edition = "2018"
 license = "MIT"
 keywords = ["parse", "dump", "serialize", "deserialize", "stringify"]
