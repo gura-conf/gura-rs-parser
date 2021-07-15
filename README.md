@@ -71,6 +71,8 @@ All kind of contribution is welcome! If you want to contribute just:
 1. Create a new branch and introduce there your new changes.
 1. Make a Pull Request!
 
+Or you can join to our [community in Discord][discord-server]!
+
 
 ### Tests
 
@@ -83,3 +85,4 @@ This repository is distributed under the terms of the MIT license.
 
 
 [gura]: https://github.com/gura-conf/gura
+[discord-server]: https://discord.gg/Qs5AXPQpKd
