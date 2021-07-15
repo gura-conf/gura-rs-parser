@@ -6,7 +6,7 @@ authors = ["JWare Solutions <jware.organization@gmail.com>"]
 repository = "https://github.com/gura-conf/gura-rs-parser"
 edition = "2018"
 license = "MIT"
-keywords = ["Gura", "configuration language", "parser", "parse", "dump", "serialize", "deserialize", "stringify"]
+keywords = ["Gura", "configuration", "language", "parser", "parse", "dump", "serialize", "deserialize", "stringify"]
 
 [dependencies]
 itertools = "0.10.1"
