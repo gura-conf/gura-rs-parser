@@ -2,6 +2,7 @@
 use gura::parser::dump;
 use gura::parser::parse;
 use gura::parser::GuraType;
+
 fn main() {
     let gura_string = "
 # This is a Gura document.
