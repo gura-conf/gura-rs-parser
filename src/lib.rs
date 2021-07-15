@@ -7,9 +7,8 @@
 //! This crate parses Gura strings into Rust structures and vice versa:
 //!
 //! ```
-//! use gura::parser::dump;
-//! use gura::parser::parse;
-//! use gura::parser::GuraType;
+//! use gura::{dump, parse, GuraType};
+//!
 //! fn main() {
 //!     let gura_string = "
 //! title: \"Gura Example\"
@@ -54,9 +53,7 @@
 //! Using macros and indexing, it's easy to work with the data.
 //!
 //! ```
-//! use gura::object;
-//! use gura::parser::dump;
-//! use gura::parser::GuraType;
+//! use gura::{object, dump, GuraType};
 //!
 //! fn main() {
 //!     let object = object! {

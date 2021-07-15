@@ -16,9 +16,8 @@ gura = "0.1.0"
 ## Usage
 
 ```rust
-use gura::parser::dump;
-use gura::parser::parse;
-use gura::parser::GuraType;
+use gura::{dump, parse, GuraType};
+
 fn main() {
     let gura_string = "
 # This is a Gura document.

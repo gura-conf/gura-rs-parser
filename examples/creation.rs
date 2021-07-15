@@ -1,7 +1,5 @@
 // Basic Gura object creation example
-use gura::object;
-use gura::parser::dump;
-use gura::parser::GuraType;
+use gura::{dump, object, GuraType};
 
 fn main() {
     let object = object! {
