@@ -34,6 +34,7 @@ fn get_expected() -> GuraType {
         sf2: INFINITY,
         sf3: NEG_INFINITY,
         null: null,
+        empty_single: {},
         bool1: true,
         bool2: false,
         1234: "1234",
@@ -76,6 +77,7 @@ fn get_expected() -> GuraType {
         ],
         my_server: {
             host: "127.0.0.1",
+            empty_nested: {},
             port: 8080,
             native_auth: true
         },

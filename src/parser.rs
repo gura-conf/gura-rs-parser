@@ -406,6 +406,7 @@ fn primitive_type(text: &mut Input) -> RuleResult {
             Box::new(literal_string),
             Box::new(number),
             Box::new(variable_value),
+            Box::new(empty_object),
         ],
     )
 }
@@ -436,10 +437,16 @@ fn complex_type(text: &mut Input) -> RuleResult {
     matches(text, vec![Box::new(list), Box::new(object)])
 }
 
-/// Consumes `null` keyword and return null.
+/// Consumes `null` keyword and returns null.
 fn null(text: &mut Input) -> RuleResult {
     keyword(text, &vec!["null"])?;
     Ok(GuraType::Null)
+}
+
+/// Consumes `empty` keyword and returns an empty object.
+fn empty_object(text: &mut Input) -> RuleResult {
+    keyword(text, &vec!["empty"])?;
+    Ok(GuraType::Object(IndexMap::new()))
 }
 
 /// Matches boolean values.
@@ -1556,21 +1563,26 @@ fn dump_content(content: &GuraType, indentation_level: usize, new_line: bool) ->
         GuraType::Bool(bool_value) => bool_value.to_string().add(new_line_char),
         GuraType::Pair(key, value, _) => format!("{}: {}", key, value),
         GuraType::Object(values) => {
-            let mut result = String::new();
-            let indentation = " ".repeat(indentation_level * 4);
-            for (key, gura_value) in values.iter() {
-                result.push_str(&format!("{}{}:", indentation, key));
-
-                // If it is an object it does not add a whitespace after key
-                match **gura_value {
-                    GuraType::Object(_) => (),
-                    _ => result.push(' '),
+            if values.len() > 0 {
+                let mut result = String::new();
+                let indentation = " ".repeat(indentation_level * 4);
+                for (key, gura_value) in values.iter() {
+                    result.push_str(&format!("{}{}:", indentation, key));
+    
+                    // If it is an object it does not add a whitespace after key
+                    match **gura_value {
+                        GuraType::Object(_) => (),
+                        _ => result.push(' '),
+                    }
+    
+                    result.push_str(&dump_content(gura_value, indentation_level + 1, true))
                 }
-
-                result.push_str(&dump_content(gura_value, indentation_level + 1, true))
+    
+                return "\n".to_string() + &result;
             }
 
-            return "\n".to_string() + &result;
+            // Empty object
+            return " empty\n".to_string();
         }
 
         GuraType::Array(array) => {

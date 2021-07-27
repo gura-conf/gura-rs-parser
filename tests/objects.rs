@@ -1,8 +1,4 @@
-use gura::{
-    errors::{InvalidIndentationError, ParseError},
-    object,
-    parser::GuraType,
-};
+use gura::{errors::{InvalidIndentationError, ParseError}, object, parse, parser::GuraType};
 mod common;
 
 fn get_expected() -> GuraType {
@@ -24,6 +20,12 @@ fn get_expected() -> GuraType {
     }
 }
 
+fn get_empty_object() -> GuraType {
+    object! {
+        empty_object: {}
+    }
+}
+
 const PARENT_FOLDER: &str = "objects";
 
 #[test]
@@ -31,6 +33,27 @@ const PARENT_FOLDER: &str = "objects";
 fn test_normal() {
     let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "normal.ura").unwrap();
     assert_eq!(parsed_data, get_expected());
+}
+
+#[test]
+/// Tests empty object
+fn test_empty() {
+    let parsed_data = parse(&"empty_object: empty".to_string()).unwrap();
+    assert_eq!(parsed_data, get_empty_object());
+}
+
+#[test]
+/// Tests empty object with several blanks
+fn test_empty_2() {
+    let parsed_data = parse(&"empty_object:     empty    ".to_string()).unwrap();
+    assert_eq!(parsed_data, get_empty_object());
+}
+
+#[test]
+/// Tests empty object with comments and blank lines
+fn test_empty_3() {
+    let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "empty.ura").unwrap();
+    assert_eq!(parsed_data, get_empty_object());
 }
 
 #[test]

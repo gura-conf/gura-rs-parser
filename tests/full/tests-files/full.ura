@@ -40,6 +40,9 @@ sf3: -inf # Negative infinity
 # Null
 null: null
 
+# Empty objects
+empty_single: empty
+
 # Bool
 bool1: true
 bool2: false
@@ -91,6 +94,7 @@ $my_integer_var: 8080
 
 my_server:
     host: $my_string_var
+    empty_nested: empty
     port: $my_integer_var
     native_auth: true
 
