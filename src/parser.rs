@@ -15,7 +15,7 @@ use std::{
     error::Error,
     f64::{INFINITY, NAN, NEG_INFINITY},
     fmt,
-    ops::{Add, Deref, Index},
+    ops::{Add, Index},
     usize, vec,
 };
 use unicode_segmentation::UnicodeSegmentation;
@@ -135,30 +135,16 @@ impl fmt::Display for GuraType {
 }
 
 /// Implements indexing by `&str` to easily access object members:
-impl Index<&str> for GuraType {
+impl<T> Index<T> for GuraType
+where T: AsRef<str>
+{
     type Output = GuraType;
 
-    fn index(&self, index: &str) -> &GuraType {
+    fn index(&self, index: T) -> &GuraType {
         match *self {
-            GuraType::Object(ref object) => &object[index],
+            GuraType::Object(ref object) => &object[index.as_ref()],
             _ => &GuraType::Null,
         }
-    }
-}
-
-impl Index<String> for GuraType {
-    type Output = GuraType;
-
-    fn index(&self, index: String) -> &GuraType {
-        self.index(index.deref())
-    }
-}
-
-impl Index<&String> for GuraType {
-    type Output = GuraType;
-
-    fn index(&self, index: &String) -> &GuraType {
-        self.index(index.deref())
     }
 }
 
