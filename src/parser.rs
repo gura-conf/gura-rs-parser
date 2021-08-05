@@ -5,7 +5,6 @@ use crate::errors::{
 use crate::pretty_print_float::PrettyPrintFloatWithFallback;
 use indexmap::IndexMap;
 use itertools::Itertools;
-use regex::Regex;
 use std::fs;
 use std::path::Path;
 use std::{
@@ -15,7 +14,7 @@ use std::{
     error::Error,
     f64::{INFINITY, NAN, NEG_INFINITY},
     fmt,
-    ops::{Add, Index},
+    ops::Index,
     usize, vec,
 };
 use unicode_segmentation::UnicodeSegmentation;
@@ -50,6 +49,26 @@ fn escape_sequences<'a>() -> HashMap<&'a str, String> {
     .cloned()
     .collect()
 }
+
+// Sequences that need escaped when dumping string values
+fn sequences_to_scape<'a>() -> HashMap<&'a str, String> {
+    [
+        ("\x08", "\\b".to_string()),
+        ("\x0c", "\\f".to_string()),
+        ("\n", "\\n".to_string()),
+        ("\r", "\\r".to_string()),
+        ("\t", "\\t".to_string()),
+        ("\"", "\\\"".to_string()),
+        ("\\", "\\\\".to_string()),
+        ("$", "\\$".to_string()),
+    ]
+    .iter()
+    .cloned()
+    .collect()
+}
+
+// Indentation of 4 spaces
+const INDENT: &str = "    ";
 
 /// Useful for number parsing
 #[derive(Debug, PartialEq, Eq)]
@@ -136,7 +155,8 @@ impl fmt::Display for GuraType {
 
 /// Implements indexing by `&str` to easily access object members:
 impl<T> Index<T> for GuraType
-where T: AsRef<str>
+where
+    T: AsRef<str>,
 {
     type Output = GuraType;
 
@@ -534,15 +554,6 @@ fn get_var_name(text: &mut Input) -> Result<String, Box<dyn Error>> {
     }
 
     Ok(var_name)
-}
-
-/// Removes suffix (if exists) from a string
-fn remove_suffix(source: String, suffix_to_replace: &str) -> String {
-    if source.ends_with(suffix_to_replace) {
-        (source[..source.len() - suffix_to_replace.len()]).to_string()
-    } else {
-        source
-    }
 }
 
 /// Computes all the import sentences in Gura file taking into consideration relative paths to imported files.
@@ -1496,7 +1507,7 @@ fn pair(text: &mut Input) -> RuleResult {
                 }
                 _ => (),
             }
-            
+
             // Prevents issues with indentation inside a list that break objects
             if let GuraType::Array(_) = *result {
                 text.remove_last_indentation_level();
@@ -1523,17 +1534,30 @@ fn pair(text: &mut Input) -> RuleResult {
 }
 
 /// Auxiliary function for dumping
-fn dump_content(content: &GuraType, indentation_level: usize, new_line: bool) -> String {
-    let new_line_char = if new_line { "\n" } else { "" };
+fn dump_content(content: &GuraType) -> String {
+    let sequences_to_scape = sequences_to_scape();
 
     match content {
-        GuraType::Null => format!("null{}", new_line_char),
+        GuraType::Null => "null".to_string(),
         GuraType::String(str_content) => {
-            let escaped = str_content.replace("'", "\\'");
-            format!("'{}'{}", escaped, new_line_char)
+            let mut result = String::new();
+
+            // Escapes everything that needs to be escaped
+            let content_chars = get_graphemes_cluster(str_content);
+            for char in content_chars.into_iter() {
+                let char_str = char.as_str();
+                let char_to_append = if sequences_to_scape.contains_key(&char_str) {
+                    sequences_to_scape.get(&char_str).unwrap().clone()
+                } else {
+                    char
+                };
+                result.push_str(&char_to_append);
+            }
+
+            format!("\"{}\"", result)
         }
-        GuraType::Integer(number) => format!("{}{}", number, new_line_char),
-        GuraType::BigInteger(number) => format!("{}{}", number, new_line_char),
+        GuraType::Integer(number) => number.to_string(),
+        GuraType::BigInteger(number) => number.to_string(),
         GuraType::Float(number) => {
             let value: String;
             if number.is_nan() {
@@ -1550,87 +1574,89 @@ fn dump_content(content: &GuraType, indentation_level: usize, new_line: bool) ->
                 }
             }
 
-            format!("{}{}", value, new_line_char)
+            value
         }
-        GuraType::Bool(bool_value) => bool_value.to_string().add(new_line_char),
+        GuraType::Bool(bool_value) => bool_value.to_string(),
         GuraType::Pair(key, value, _) => format!("{}: {}", key, value),
         GuraType::Object(values) => {
-            if values.len() > 0 {
-                let mut result = String::new();
-                let indentation = " ".repeat(indentation_level * 4);
-                for (key, gura_value) in values.iter() {
-                    result.push_str(&format!("{}{}:", indentation, key));
-    
-                    // If it is an object it does not add a whitespace after key
-                    match **gura_value {
-                        GuraType::Object(_) => (),
-                        _ => result.push(' '),
-                    }
-    
-                    result.push_str(&dump_content(gura_value, indentation_level + 1, true))
-                }
-    
-                return "\n".to_string() + &result;
+            if values.len() == 0 {
+                return "empty".to_string();
             }
 
-            // Empty object
-            return " empty\n".to_string();
-        }
+            let mut result = String::new();
+            for (key, gura_value) in values.iter() {
+                result.push_str(&format!("{}:", key));
 
+                // If the value is an object, splits the stringified value by
+                // newline and indents each line before adding it to the result
+                if let GuraType::Object(obj) = &**gura_value {
+                    let dumped = dump_content(gura_value);
+                    let stringified_value = dumped.trim_end();
+                    if obj.len() > 0 {
+                        result.push('\n');
+
+                        for line in stringified_value.split('\n') {
+                            result.push_str(&format!("{}{}\n", INDENT, line));
+                        }
+                    } else {
+                        // Prevents indentation on empty objects
+                        result.push_str(&format!(" {}\n", stringified_value));
+                    }
+                } else {
+                    result.push_str(&format!(" {}\n", dump_content(gura_value)));
+                }
+            }
+
+            result
+        }
         GuraType::Array(array) => {
             // Lists are a special case: if it has an object, and indented representation must be returned. In case
             // of primitive values or nested arrays, a plain representation is more appropriated
-            let mut list_values: Vec<String> = Vec::with_capacity(array.len());
-            let mut at_least_one_obj = false;
-            for list_elem in array {
-                let is_obj = match **list_elem {
-                    GuraType::Object(_) => true,
-                    _ => false,
-                };
-                let mut str_value = dump_content(list_elem, indentation_level, is_obj);
+            let should_multiline = array.iter().any(|e| {
+                if let GuraType::Object(obj) = &**e {
+                    obj.len() > 0
+                } else {
+                    false
+                }
+            });
 
-                // Prevents multiples new lines
-                if is_obj {
-                    str_value = remove_suffix(str_value, "\n");
-                    at_least_one_obj = true;
+            if !should_multiline {
+                let stringify_values: Vec<String> =
+                    array.iter().map(|elem| dump_content(&elem)).collect();
+                let joined = stringify_values.iter().cloned().join(", ");
+                return format!("[{}]", joined);
+            }
+
+            let mut result = String::from("[");
+            let last_idx = array.len() - 1;
+
+            for (idx, elem) in array.iter().enumerate() {
+                let dumped = dump_content(&elem);
+                let stringified_value = dumped.trim_end();
+
+                result.push('\n');
+
+                // If the stringified value contains multiple lines, indents all
+                // of them and adds them all to the result
+                if stringified_value.contains('\n') {
+                    let splitted = stringified_value.split('\n');
+                    let splitted: Vec<String> = splitted
+                        .map(|element| format!("{}{}", INDENT, element))
+                        .collect();
+                    result += &splitted.iter().cloned().join("\n");
+                } else {
+                    // Otherwise indent the value and add to result
+                    result.push_str(&format!("{}{}", INDENT, stringified_value));
                 }
 
-                list_values.push(str_value);
-            }
-
-            let mut list_str = String::from("[");
-
-            // If there is at least one object adds an indentation to every non object value
-            let mut list_joined_str: String;
-            if at_least_one_obj {
-                let new_line_regex = Regex::new(r"^\n").unwrap();
-                list_joined_str = String::new();
-                list_str.push('\n');
-                let last_idx = list_values.len() - 1;
-                for (idx, elem) in list_values.iter().enumerate() {
-                    let elem_str: String;
-                    let elem_is_obj = elem.starts_with('\n');
-                    if !elem_is_obj {
-                        elem_str = " ".repeat(4) + elem;
-                    } else {
-                        elem_str = new_line_regex.replace(&elem, "").to_string();
-                    }
-                    list_joined_str.push_str(&elem_str);
-                    if idx != last_idx {
-                        list_joined_str.push_str(",\n");
-                    }
+                // Add a comma if this entry is not the final entry in the list
+                if idx < last_idx {
+                    result.push(',');
                 }
-            } else {
-                // In case of primitive or nested arrays, just returns a plain representation
-                list_joined_str = list_values.iter().cloned().join(", ");
             }
-            list_str.push_str(&list_joined_str);
 
-            // Adds a last new line to append closing bracket
-            if at_least_one_obj {
-                list_str.push('\n');
-            }
-            list_str.add("]").add(new_line_char)
+            result.push_str("\n]");
+            result
         }
         _ => String::new(),
     }
@@ -1658,10 +1684,10 @@ fn dump_content(content: &GuraType, indentation_level: usize, new_line: bool) ->
 /// nested:
 ///     array: [1, 2, 3]
 ///     nested_ar: [1, [2, 3], 4]
-/// a_string: 'Gura Rust'";
+/// a_string: \"Gura Rust\"";
 ///
 /// assert_eq!(stringified, expected);
 /// ```
 pub fn dump(content: &GuraType) -> String {
-    dump_content(content, 0, true).trim().to_string()
+    dump_content(content).trim().to_string()
 }

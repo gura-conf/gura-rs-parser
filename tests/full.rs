@@ -104,12 +104,55 @@ fn test_loads_nan() {
 }
 
 #[test]
-/// Tests dumps method
+/// Tests dumps method consistency
 fn test_dumps() {
     let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "full.ura").unwrap();
     let string_data = dump(&parsed_data);
     let new_parsed_data = parse(&string_data).unwrap();
     assert_eq!(new_parsed_data, get_expected());
+}
+
+#[test]
+/// Tests dumps method result
+fn test_dumps_result() {
+    let str = "foo: [
+    bar:
+        baz: [
+            far: [
+                faz: \"foo\"
+            ],
+            far: \"faz\",
+            far: \"faz\"
+        ],
+    [empty, empty, empty],
+    [
+        foo:
+            hi: \"bar\"
+            jeje: [
+                foo: [
+                    bar:
+                        baz: [
+                            far: [
+                                faz: \"foo\"
+                            ],
+                            far: \"faz\",
+                            far: \"faz\"
+                        ],
+                    [empty, empty, empty],
+                    [
+                        foo:
+                            hi: \"bar\"
+                            jeje: []
+                    ]
+                ]
+            ]
+    ]
+]"
+    .to_string();
+
+    let parsed = parse(&str).unwrap();
+    let dumped = dump(&parsed);
+    assert_eq!(str, dumped);
 }
 
 #[test]
