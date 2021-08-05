@@ -52,6 +52,19 @@ fn get_expected_inside_object() -> GuraType {
     }
 }
 
+fn get_expected_trailing_comma() -> GuraType {
+    object! {
+        foo: [{
+            bar: {
+                baz: [
+                    { far: "faz" }
+                ]
+            }
+        }],
+        barbaz: "boo"
+    }
+}
+
 const PARENT_FOLDER: &str = "arrays";
 
 #[test]
@@ -59,6 +72,14 @@ const PARENT_FOLDER: &str = "arrays";
 fn test_normal() {
     let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "normal.ura").unwrap();
     assert_eq!(parsed_data, get_expected());
+}
+
+#[test]
+/// Tests a bug that breaks arrays with a mandatory trailing comma. In this case the trailing comma is
+/// missing and it should parse correctly
+fn bug_trailing_comma() {
+    let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "bug_trailing_comma.ura").unwrap();
+    assert_eq!(parsed_data, get_expected_trailing_comma());
 }
 
 /// Tests all kind of arrays with comments between elements

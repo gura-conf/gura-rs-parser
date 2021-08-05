@@ -1496,6 +1496,13 @@ fn pair(text: &mut Input) -> RuleResult {
                 }
                 _ => (),
             }
+            
+            // Prevents issues with indentation inside a list that break objects
+            if let GuraType::Array(_) = *result {
+                text.remove_last_indentation_level();
+                text.indentation_levels.push(current_indentation_level);
+            }
+
             maybe_match(text, vec![Box::new(new_line)])?;
 
             Ok(GuraType::Pair(key_value, result, current_indentation_level))
