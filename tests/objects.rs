@@ -82,3 +82,13 @@ fn test_invalid_2() {
         .downcast_ref::<InvalidIndentationError>()
         .is_some());
 }
+
+#[test]
+/// Tests parsing error in invalid objects
+fn test_invalid_3() {
+    let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "invalid_3.ura");
+    assert!(parsed_data
+        .unwrap_err()
+        .downcast_ref::<ParseError>()
+        .is_some());
+}

@@ -1438,7 +1438,6 @@ fn pair(text: &mut Input) -> RuleResult {
 
         if let GuraType::String(key_value) = matched_key {
             maybe_match(text, vec![Box::new(ws)])?;
-            maybe_match(text, vec![Box::new(new_line)])?;
 
             // Check indentation
             let last_indentation_block = get_last_indentation_level(text);
