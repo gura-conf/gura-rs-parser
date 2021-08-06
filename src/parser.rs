@@ -521,7 +521,7 @@ fn basic_string(text: &mut Input) -> RuleResult {
                         Some(good_escape_char) => good_escape_char,
                         None => &current_char,
                     };
-                    final_string.push_str(&escaped_char);
+                    final_string.push_str(escaped_char);
                 }
             }
         } else {
@@ -745,7 +745,7 @@ fn char(text: &mut Input, chars: &Option<String>) -> Result<String, Box<dyn Erro
             Ok(next_char.to_string())
         }
         Some(chars_value) => {
-            for char_range in split_char_ranges(text, &chars_value)? {
+            for char_range in split_char_ranges(text, chars_value)? {
                 if char_range.len() == 1 {
                     let next_char = &text.text[text.pos];
                     if *next_char == char_range[0] {
@@ -1613,7 +1613,7 @@ fn dump_content(content: &GuraType) -> String {
 
             if !should_multiline {
                 let stringify_values: Vec<String> =
-                    array.iter().map(|elem| dump_content(&elem)).collect();
+                    array.iter().map(|elem| dump_content(elem)).collect();
                 let joined = stringify_values.iter().cloned().join(", ");
                 return format!("[{}]", joined);
             }
@@ -1622,7 +1622,7 @@ fn dump_content(content: &GuraType) -> String {
             let last_idx = array.len() - 1;
 
             for (idx, elem) in array.iter().enumerate() {
-                let dumped = dump_content(&elem);
+                let dumped = dump_content(elem);
                 let stringified_value = dumped.trim_end();
 
                 result.push('\n');
