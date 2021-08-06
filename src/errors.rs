@@ -3,9 +3,9 @@ use std::{error::Error, fmt};
 // ParseError
 #[derive(Debug, Clone)]
 pub struct ParseError {
-    message: String,
     pub pos: usize,
     line: usize,
+    message: String,
 }
 
 impl ParseError {

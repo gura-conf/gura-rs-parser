@@ -10,7 +10,7 @@ impl std::fmt::Display for PrettyPrintFloatWithFallback {
         let tmp = format!("{:w$.p$}", PrettyPrintFloat(self.0), w = w, p = p);
         let parse_back: Result<f64, _> = tmp.parse();
         match parse_back {
-            Ok(x) if x == self.0 => tmp.fmt(f),
+            Ok(x) if (x - self.0).abs() < f64::EPSILON => tmp.fmt(f),
             _ => self.0.fmt(f),
         }
     }

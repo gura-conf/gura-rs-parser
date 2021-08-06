@@ -9,8 +9,7 @@
 //! ```
 //! use gura::{dump, parse, GuraType};
 //!
-//! fn main() {
-//!     let gura_string = "
+//! let gura_string = "
 //! title: \"Gura Example\"
 //!
 //! an_object:
@@ -23,29 +22,28 @@
 //! ]"
 //!     .to_string();
 //!
-//!     // Parse: transforms a Gura string into a dictionary
-//!     let parsed = parse(&gura_string).unwrap();
+//! // Parse: transforms a Gura string into a dictionary
+//! let parsed = parse(&gura_string).unwrap();
 //!
-//!     // Debug and Display
-//!     // println!("{:#?}", parsed);
-//!     // println!("{}", parsed);
+//! // Debug and Display
+//! // println!("{:#?}", parsed);
+//! // println!("{}", parsed);
 //!
-//!     // Access a specific field
-//!     println!("Title -> {}", parsed["title"]);
+//! // Access a specific field
+//! println!("Title -> {}", parsed["title"]);
 //!
-//!     // Iterate over structure
-//!     println!("\nHosts:");
-//!     if let GuraType::Array(hosts) = &parsed["hosts"] {
-//!         for host in hosts.iter() {
-//!             println!("Host -> {}", *host);
-//!         }
+//! // Iterate over structure
+//! println!("\nHosts:");
+//! if let GuraType::Array(hosts) = &parsed["hosts"] {
+//!     for host in hosts.iter() {
+//!         println!("Host -> {}", *host);
 //!     }
-//!
-//!     // Dump: transforms a dictionary into a Gura string
-//!     let string_again = dump(&parsed);
-//!     println!("\n+++++ Dump result +++++");
-//!     println!("{}", string_again);
 //! }
+//!
+//! // Dump: transforms a dictionary into a Gura string
+//! let string_again = dump(&parsed);
+//! println!("\n+++++ Dump result +++++");
+//! println!("{}", string_again);
 //! ```
 //!
 //! ## Easy creation, easy access
@@ -55,33 +53,31 @@
 //! ```
 //! use gura::{object, dump, GuraType};
 //!
-//! fn main() {
-//!     let object = object! {
-//!         a_number: 55,
-//!         nested: {
-//!             array: [1, 2, 3],
-//!             nested_ar: [1, [2, 3], 4]
-//!         },
-//!         a_string: "Gura Rust"
-//!     };
+//! let object = object! {
+//!     a_number: 55,
+//!     nested: {
+//!         array: [1, 2, 3],
+//!         nested_ar: [1, [2, 3], 4]
+//!     },
+//!     a_string: "Gura Rust"
+//! };
 //!
-//!     // Access a specific field
-//!     assert_eq!(object["a_number"], 55);
-//!     assert_eq!(object["a_string"], "Gura Rust");
+//! // Access a specific field
+//! assert_eq!(object["a_number"], 55);
+//! assert_eq!(object["a_string"], "Gura Rust");
 //!
-//!     // Iterate over structure
-//!     println!("\nNested/Array:");
-//!     if let GuraType::Array(numbers) = &object["nested"]["array"] {
-//!         for number in numbers.iter() {
-//!             println!("Number in array -> {}", *number);
-//!         }
+//! // Iterate over structure
+//! println!("\nNested/Array:");
+//! if let GuraType::Array(numbers) = &object["nested"]["array"] {
+//!     for number in numbers.iter() {
+//!         println!("Number in array -> {}", *number);
 //!     }
-//!
-//!     // Dump: transforms a dictionary into a Gura string
-//!     let object_string = dump(&object);
-//!     println!("\n+++++ Dump result +++++");
-//!     println!("{}", object_string);
 //! }
+//!
+//! // Dump: transforms a dictionary into a Gura string
+//! let object_string = dump(&object);
+//! println!("\n+++++ Dump result +++++");
+//! println!("{}", object_string);
 //! ```
 
 pub mod errors;
