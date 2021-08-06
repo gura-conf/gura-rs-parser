@@ -24,19 +24,19 @@ gura = "0.2.0"
 use gura::{dump, parse, GuraType};
 
 fn main() {
-    let gura_string = "
+    let gura_string = r##"
 # This is a Gura document.
-title: \"Gura Example\"
+title: "Gura Example"
 
 an_object:
-    username: \"Stephen\"
-    pass: \"Hawking\"
+    username: "Stephen"
+    pass: "Hawking"
 
 # Line breaks are OK when inside arrays
 hosts: [
-  \"alpha\",
-  \"omega\"
-]"
+  "alpha",
+  "omega"
+]"##
     .to_string();
 
     // Parse: transforms a Gura string into a dictionary
