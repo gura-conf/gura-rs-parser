@@ -5,17 +5,17 @@ use crate::errors::{
 use crate::pretty_print_float::PrettyPrintFloatWithFallback;
 use indexmap::IndexMap;
 use itertools::Itertools;
-use std::fs;
-use std::path::Path;
+use lazy_static::lazy_static;
 use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     env,
     error::Error,
     f64::{INFINITY, NAN, NEG_INFINITY},
-    fmt,
+    fmt, fs,
     ops::Index,
-    usize, vec,
+    path::Path,
+    usize,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -33,38 +33,33 @@ const KEY_ACCEPTABLE_CHARS: &str = "0-9A-Za-z_";
 /// New line chars
 const NEW_LINE_CHARS: &str = "\n\x0c\x0b\x08";
 
-/// Returns a HashMap with special characters to be escaped
-fn escape_sequences<'a>() -> HashMap<&'a str, String> {
-    [
-        ("b", "\x08".to_string()),
-        ("f", "\x0c".to_string()),
-        ("n", "\n".to_string()),
-        ("r", "\r".to_string()),
-        ("t", "\t".to_string()),
-        ("\"", "\"".to_string()),
-        ("\\", "\\".to_string()),
-        ("$", "$".to_string()),
-    ]
-    .iter()
-    .cloned()
-    .collect()
-}
+lazy_static! {
+    /// HashMap with special characters to be escaped
+    static ref ESCAPE_SEQUENCES: HashMap<&'static str, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert("b", "\x08");
+        m.insert("f", "\x0c");
+        m.insert("n", "\n");
+        m.insert("r", "\r");
+        m.insert("t", "\t");
+        m.insert("\"", "\"");
+        m.insert("\\", "\\");
+        m.insert("$", "$");
+        m
+    };
 
-// Sequences that need escaped when dumping string values
-fn sequences_to_scape<'a>() -> HashMap<&'a str, String> {
-    [
-        ("\x08", "\\b".to_string()),
-        ("\x0c", "\\f".to_string()),
-        ("\n", "\\n".to_string()),
-        ("\r", "\\r".to_string()),
-        ("\t", "\\t".to_string()),
-        ("\"", "\\\"".to_string()),
-        ("\\", "\\\\".to_string()),
-        ("$", "\\$".to_string()),
-    ]
-    .iter()
-    .cloned()
-    .collect()
+    // Sequences that need escaped when dumping string values
+    static ref SEQUENCES_TO_ESCAPE: HashMap<&'static str, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert("\x08", "\\b");
+        m.insert("\x0c", "\\f");
+        m.insert("\n", "\\n");
+        m.insert("\r", "\\r");
+        m.insert("\t", "\\t");
+        m.insert("\"", "\\\"");
+        m.insert("\\", "\\\\");
+        m
+    };
 }
 
 // Indentation of 4 spaces
@@ -475,8 +470,6 @@ fn basic_string(text: &mut Input) -> RuleResult {
 
     let mut final_string: String = String::new();
 
-    let escape_sequences_map = escape_sequences();
-
     loop {
         let closing_quote = maybe_keyword(text, &[&quote])?;
         if closing_quote.is_some() {
@@ -517,10 +510,10 @@ fn basic_string(text: &mut Input) -> RuleResult {
                     };
                 } else {
                     // Gets escaped char
-                    let escaped_char = match escape_sequences_map.get(escape.as_str()) {
-                        Some(good_escape_char) => good_escape_char,
-                        None => &current_char,
-                    };
+                    let escaped_char = ESCAPE_SEQUENCES
+                        .get(escape.as_str())
+                        .cloned()
+                        .unwrap_or_else(|| current_char.as_str());
                     final_string.push_str(escaped_char);
                 }
             }
@@ -1528,8 +1521,6 @@ fn pair(text: &mut Input) -> RuleResult {
 
 /// Auxiliary function for dumping
 fn dump_content(content: &GuraType) -> String {
-    let sequences_to_scape = sequences_to_scape();
-
     match content {
         GuraType::Null => "null".to_string(),
         GuraType::String(str_content) => {
@@ -1537,14 +1528,13 @@ fn dump_content(content: &GuraType) -> String {
 
             // Escapes everything that needs to be escaped
             let content_chars = get_graphemes_cluster(str_content);
-            for char in content_chars.into_iter() {
-                let char_str = char.as_str();
-                let char_to_append = if sequences_to_scape.contains_key(&char_str) {
-                    sequences_to_scape.get(&char_str).unwrap().clone()
-                } else {
-                    char
-                };
-                result.push_str(&char_to_append);
+            for c in content_chars.into_iter() {
+                let char_str = c.as_str();
+                let char_to_append = SEQUENCES_TO_ESCAPE
+                    .get(char_str)
+                    .cloned()
+                    .unwrap_or(char_str);
+                result.push_str(char_to_append);
             }
 
             format!("\"{}\"", result)
