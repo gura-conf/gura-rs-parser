@@ -908,14 +908,14 @@ fn object_ws_to_simple_object(object: GuraType) -> GuraType {
 /// ```
 /// use gura::parse;
 ///
-/// let gura_string = "
-/// title: \"Gura Example\"
+/// let gura_string = r##"
+/// title: "Gura Example"
 /// number: 13.4
 /// an_object:
-///     name: \"John\"
-///     surname: \"Wick\"
+///     name: "John"
+///     surname: "Wick"
 ///     has_pet: false
-/// ".to_string();
+/// "##.to_string();
 ///
 /// let parsed = parse(&gura_string).unwrap();
 ///
@@ -1671,13 +1671,15 @@ fn dump_content(content: &GuraType) -> String {
 ///
 /// let stringified = dump(&object);
 ///
-/// let expected = "a_number: 55
+/// let expected = r##"
+/// a_number: 55
 /// nested:
 ///     array: [1, 2, 3]
 ///     nested_ar: [1, [2, 3], 4]
-/// a_string: \"Gura Rust\"";
+/// a_string: "Gura Rust"
+/// "##;
 ///
-/// assert_eq!(stringified, expected);
+/// assert_eq!(stringified.trim(), expected.trim());
 /// ```
 pub fn dump(content: &GuraType) -> String {
     dump_content(content).trim().to_string()

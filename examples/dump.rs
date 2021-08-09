@@ -1,40 +1,39 @@
 use gura::{dump, parse};
 
 fn main() {
-    let str = "foo: [
+    let str = r##"foo: [
     bar:
         baz: [
             far: [
-                faz: \"foo\"
+                faz: "foo"
             ],
-            far: \"faz\",
-            far: \"faz\"
+            far: "faz",
+            far: "faz"
         ],
     [empty, empty, empty],
     [
         foo:
-            hi: \"bar\"
-            jeje: [
+            hi: "bar"
+            bye: [
                 foo: [
                     bar:
                         baz: [
                             far: [
-                                faz: \"foo\"
+                                faz: "foo"
                             ],
-                            far: \"faz\",
-                            far: \"faz\"
+                            far: "faz",
+                            far: "faz"
                         ],
                     [empty, empty, empty],
                     [
                         foo:
-                            hi: \"bar\"
-                            jeje: []
+                            hi: "bar"
+                            bye: []
                     ]
                 ]
             ]
     ]
-]"
-    .to_string();
+]"##;
 
     let parsed = parse(&str).unwrap();
     let dumped = dump(&parsed);

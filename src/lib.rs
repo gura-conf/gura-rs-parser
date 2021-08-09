@@ -9,18 +9,17 @@
 //! ```
 //! use gura::{dump, parse, GuraType};
 //!
-//! let gura_string = "
-//! title: \"Gura Example\"
+//! let gura_string = r##"
+//! title: "Gura Example"
 //!
 //! an_object:
-//!     username: \"Stephen\"
-//!     pass: \"Hawking\"
+//!     username: "Stephen"
+//!     pass: "Hawking"
 //!
 //! hosts: [
-//!   \"alpha\",
-//!   \"omega\"
-//! ]"
-//!     .to_string();
+//!   "alpha",
+//!   "omega"
+//! ]"##;
 //!
 //! // Parse: transforms a Gura string into a dictionary
 //! let parsed = parse(&gura_string).unwrap();

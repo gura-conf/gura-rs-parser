@@ -38,14 +38,14 @@ fn test_normal() {
 #[test]
 /// Tests empty object
 fn test_empty() {
-    let parsed_data = parse(&"empty_object: empty".to_string()).unwrap();
+    let parsed_data = parse(&"empty_object: empty").unwrap();
     assert_eq!(parsed_data, get_empty_object());
 }
 
 #[test]
 /// Tests empty object with several blanks
 fn test_empty_2() {
-    let parsed_data = parse(&"empty_object:     empty    ".to_string()).unwrap();
+    let parsed_data = parse(&"empty_object:     empty    ").unwrap();
     assert_eq!(parsed_data, get_empty_object());
 }
 

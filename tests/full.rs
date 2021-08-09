@@ -115,40 +115,39 @@ fn test_dumps() {
 #[test]
 /// Tests dumps method result
 fn test_dumps_result() {
-    let str = "foo: [
+    let str = r##"foo: [
     bar:
         baz: [
             far: [
-                faz: \"foo\"
+                faz: "foo"
             ],
-            far: \"faz\",
-            far: \"faz\"
+            far: "faz",
+            far: "faz"
         ],
     [empty, empty, empty],
     [
         foo:
-            hi: \"bar\"
-            jeje: [
+            hi: "bar"
+            bye: [
                 foo: [
                     bar:
                         baz: [
                             far: [
-                                faz: \"foo\"
+                                faz: "foo"
                             ],
-                            far: \"faz\",
-                            far: \"faz\"
+                            far: "faz",
+                            far: "faz"
                         ],
                     [empty, empty, empty],
                     [
                         foo:
-                            hi: \"bar\"
-                            jeje: []
+                            hi: "bar"
+                            bye: []
                     ]
                 ]
             ]
     ]
-]"
-    .to_string();
+]"##;
 
     let parsed = parse(&str).unwrap();
     let dumped = dump(&parsed);
@@ -169,21 +168,21 @@ fn test_dumps_nan() {
 #[test]
 /// Tests empty Gura documents
 fn test_empty() {
-    let parsed_data = parse(&"".to_string()).unwrap();
+    let parsed_data = parse(&"").unwrap();
     assert_eq!(parsed_data, object! {});
 }
 
 #[test]
 /// Tests empty Gura documents, even when some data is defined
 fn test_empty_2() {
-    let parsed_data = parse(&"$unused_var: 5".to_string()).unwrap();
+    let parsed_data = parse(&"$unused_var: 5").unwrap();
     assert_eq!(parsed_data, object! {});
 }
 
 #[test]
 /// Tests invalid key
 fn test_invalid_key() {
-    let parsed_data = parse(&"with.dot: 5".to_string());
+    let parsed_data = parse(&"with.dot: 5");
     assert!(parsed_data
         .unwrap_err()
         .downcast_ref::<ParseError>()
@@ -193,7 +192,7 @@ fn test_invalid_key() {
 #[test]
 /// Tests invalid key
 fn test_invalid_key_2() {
-    let parsed_data = parse(&"\"with_quotes\": 5".to_string());
+    let parsed_data = parse(&"\"with_quotes\": 5");
     assert!(parsed_data
         .unwrap_err()
         .downcast_ref::<ParseError>()
@@ -203,7 +202,7 @@ fn test_invalid_key_2() {
 #[test]
 /// Tests invalid key
 fn test_invalid_key_3() {
-    let parsed_data = parse(&"with-dashes: 5".to_string());
+    let parsed_data = parse(&"with-dashes: 5");
     assert!(parsed_data
         .unwrap_err()
         .downcast_ref::<ParseError>()

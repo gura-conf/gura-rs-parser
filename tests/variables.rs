@@ -31,7 +31,7 @@ fn test_normal() {
 #[test]
 /// Tests errors in variables definition
 fn test_with_error() {
-    let parsed_data = parse(&"test: $false_var".to_string());
+    let parsed_data = parse(&"test: $false_var");
     assert!(parsed_data
         .unwrap_err()
         .downcast_ref::<VariableNotDefinedError>()
@@ -41,7 +41,7 @@ fn test_with_error() {
 #[test]
 /// Tests errors in variables definition
 fn test_with_duplicated() {
-    let parsed_data = parse(&"$a_var: 14\n$a_var: 15".to_string());
+    let parsed_data = parse(&"$a_var: 14\n$a_var: 15");
     assert!(parsed_data
         .unwrap_err()
         .downcast_ref::<DuplicatedVariableError>()
@@ -63,7 +63,7 @@ fn test_env_var() {
 #[test]
 /// Tests invalid variable value type
 fn test_invalid_variable() {
-    let parsed_data = parse(&"$invalid: true".to_string());
+    let parsed_data = parse(&"$invalid: true");
     assert!(parsed_data
         .unwrap_err()
         .downcast_ref::<ParseError>()
@@ -73,7 +73,7 @@ fn test_invalid_variable() {
 #[test]
 /// Tests invalid variable value type
 fn test_invalid_variable_2() {
-    let parsed_data = parse(&"$invalid: false".to_string());
+    let parsed_data = parse(&"$invalid: false");
     assert!(parsed_data
         .unwrap_err()
         .downcast_ref::<ParseError>()
@@ -83,7 +83,7 @@ fn test_invalid_variable_2() {
 #[test]
 /// Tests invalid variable value type
 fn test_invalid_variable_3() {
-    let parsed_data = parse(&"$invalid: null".to_string());
+    let parsed_data = parse(&"$invalid: null");
     assert!(parsed_data
         .unwrap_err()
         .downcast_ref::<ParseError>()
@@ -93,7 +93,7 @@ fn test_invalid_variable_3() {
 #[test]
 /// Tests invalid variable value type
 fn test_invalid_variable_4() {
-    let parsed_data = parse(&"$invalid: [ 1, 2, 3]".to_string());
+    let parsed_data = parse(&"$invalid: [ 1, 2, 3]");
     assert!(parsed_data
         .unwrap_err()
         .downcast_ref::<ParseError>()

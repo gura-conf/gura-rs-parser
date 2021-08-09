@@ -36,8 +36,7 @@ an_object:
 hosts: [
   "alpha",
   "omega"
-]"##
-    .to_string();
+]"##;
 
     // Parse: transforms a Gura string into a dictionary
     let parsed = parse(&gura_string).unwrap();
