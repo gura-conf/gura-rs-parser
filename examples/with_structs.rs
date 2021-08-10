@@ -4,7 +4,7 @@ use gura::{parse, GuraType};
 struct TangoSinger {
     name: String,
     surname: String,
-    year_of_birth: u8,
+    year_of_birth: u16,
 }
 
 fn main() {
@@ -39,9 +39,9 @@ tango_singers: [
                 let (_singer_key, singer_props) = key_values.iter().next().unwrap();
 
                 // Inside the for loop
-                let year_of_birth: u8 = match singer_props["year_of_birth"] {
-                    GuraType::Integer(value) => value as u8,
-                    GuraType::BigInteger(value) => value as u8,
+                let year_of_birth: u16 = match singer_props["year_of_birth"] {
+                    GuraType::Integer(value) => value as u16,
+                    GuraType::BigInteger(value) => value as u16,
                     _ => panic!("Gura text is not a valid array of tango singers!"),
                 };
 
