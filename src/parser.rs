@@ -34,8 +34,8 @@ const KEY_ACCEPTABLE_CHARS: &str = "0-9A-Za-z_";
 const NEW_LINE_CHARS: &str = "\n\x0c\x0b\x08";
 
 lazy_static! {
-    /// HashMap with special characters to be escaped
-    static ref ESCAPE_SEQUENCES: HashMap<&'static str, &'static str> = {
+    /// Special characters that need escaped when parsing Gura texts
+    static ref CHARS_TO_ESCAPE: HashMap<&'static str, &'static str> = {
         let mut m = HashMap::new();
         m.insert("b", "\x08");
         m.insert("f", "\x0c");
@@ -48,7 +48,7 @@ lazy_static! {
         m
     };
 
-    // Sequences that need escaped when dumping string values
+    /// Sequences that need escaped when dumping string values
     static ref SEQUENCES_TO_ESCAPE: HashMap<&'static str, &'static str> = {
         let mut m = HashMap::new();
         m.insert("\x08", "\\b");
@@ -510,7 +510,7 @@ fn basic_string(text: &mut Input) -> RuleResult {
                     };
                 } else {
                     // Gets escaped char
-                    let escaped_char = ESCAPE_SEQUENCES
+                    let escaped_char = CHARS_TO_ESCAPE
                         .get(escape.as_str())
                         .cloned()
                         .unwrap_or_else(|| current_char.as_str());
