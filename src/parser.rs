@@ -121,9 +121,9 @@ pub enum GuraType {
     Variable,
     // Uses IndexMap as it preserves the order of insertion
     /// Object with information about indentation (intended to be used internally).
-    ObjectWithWs(IndexMap<String, Box<GuraType>>, usize),
+    ObjectWithWs(IndexMap<String, GuraType>, usize),
     /// Object with its key/value pairs.
-    Object(IndexMap<String, Box<GuraType>>),
+    Object(IndexMap<String, GuraType>),
     /// Boolean values.
     Bool(bool),
     /// String values.
@@ -304,14 +304,14 @@ impl PartialEq<GuraType> for String {
 }
 
 impl GuraType {
-    pub fn iter(&self) -> Result<indexmap::map::Iter<'_, String, Box<GuraType>>, &str> {
+    pub fn iter(&self) -> Result<indexmap::map::Iter<'_, String, GuraType>, &str> {
         match self {
             GuraType::Object(hash_map) => Ok(hash_map.iter()),
             _ => Err("This struct is not an object"),
         }
     }
 
-    pub fn iter_mut(&mut self) -> Result<indexmap::map::IterMut<'_, String, Box<GuraType>>, &str> {
+    pub fn iter_mut(&mut self) -> Result<indexmap::map::IterMut<'_, String, GuraType>, &str> {
         match self {
             GuraType::Object(hash_map) => Ok(hash_map.iter_mut()),
             _ => Err("This struct is not an object"),
@@ -1383,7 +1383,7 @@ fn literal_string(text: &mut Input) -> RuleResult {
 ///
 /// * DuplicatedKeyError - If any of the defined key was declared more than once.
 fn object(text: &mut Input) -> RuleResult {
-    let mut result: IndexMap<String, Box<GuraType>> = IndexMap::new();
+    let mut result: IndexMap<String, GuraType> = IndexMap::new();
     let mut indentation_level = 0;
     while text.pos < text.len {
         match maybe_match(
@@ -1399,7 +1399,7 @@ fn object(text: &mut Input) -> RuleResult {
                     ))));
                 }
 
-                result.insert(key, value);
+                result.insert(key, *value);
                 indentation_level = indentation
             }
             _ => (), // If it's not a pair does nothing!
@@ -1570,7 +1570,7 @@ fn dump_content(content: &GuraType) -> String {
 
                 // If the value is an object, splits the stringified value by
                 // newline and indents each line before adding it to the result
-                if let GuraType::Object(obj) = &**gura_value {
+                if let GuraType::Object(obj) = &*gura_value {
                     let dumped = dump_content(gura_value);
                     let stringified_value = dumped.trim_end();
                     if !obj.is_empty() {

@@ -1,7 +1,7 @@
 [package]
 name = "gura"
 description = "A Gura configuration language serializer/deserializer for Rust"
-version = "0.3.3"
+version = "0.3.4"
 authors = ["JWare Solutions <jware.organization@gmail.com>"]
 repository = "https://github.com/gura-conf/gura-rs-parser"
 documentation = "https://docs.rs/gura/"

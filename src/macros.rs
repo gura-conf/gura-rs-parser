@@ -6,27 +6,39 @@ pub trait Attribute {
 }
 
 impl Attribute for bool {
-    fn process(&self) -> GuraType { GuraType::Bool(*self) }
+    fn process(&self) -> GuraType {
+        GuraType::Bool(*self)
+    }
 }
 
 impl Attribute for f32 {
-    fn process(&self) -> GuraType { GuraType::Float(*self as f64) }
+    fn process(&self) -> GuraType {
+        GuraType::Float(*self as f64)
+    }
 }
 
 impl Attribute for f64 {
-    fn process(&self) -> GuraType { GuraType::Float(*self) }
+    fn process(&self) -> GuraType {
+        GuraType::Float(*self)
+    }
 }
 
 impl Attribute for isize {
-    fn process(&self) -> GuraType { GuraType::Integer(*self) }
+    fn process(&self) -> GuraType {
+        GuraType::Integer(*self)
+    }
 }
 
 impl Attribute for &str {
-    fn process(&self) -> GuraType { GuraType::String(self.to_string()) }
+    fn process(&self) -> GuraType {
+        GuraType::String(self.to_string())
+    }
 }
 
 impl Attribute for String {
-    fn process(&self) -> GuraType { GuraType::String(self.clone()) }
+    fn process(&self) -> GuraType {
+        GuraType::String(self.clone())
+    }
 }
 
 /// Helper macro for creating instances of `GuraType::Array`.
@@ -148,10 +160,10 @@ macro_rules! object {
     (@END $( $k:expr => $v:expr, )*) => ({
         let size = 0 $( + {let _ = &$k; 1} )*;
         // let mut object = $crate::object::Object::with_capacity(size);
-        let mut object: indexmap::IndexMap<std::string::String, Box<GuraType>> = indexmap::IndexMap::new();
+        let mut object: indexmap::IndexMap<std::string::String, GuraType> = indexmap::IndexMap::new();
 
         $(
-            object.insert($k.to_string(), Box::new($v));
+            object.insert($k.to_string(), $v);
         )*
 
         $crate::parser::GuraType::Object(object)

@@ -99,7 +99,7 @@ fn test_parse() {
 fn test_loads_nan() {
     let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "nan.ura").unwrap();
     for (_, value) in parsed_data.iter().unwrap() {
-        assert_eq!(**value, NAN);
+        assert_eq!(*value, NAN);
     }
 }
 
@@ -161,7 +161,7 @@ fn test_dumps_nan() {
     let string_data_nan = dump(&parsed_data);
     let new_parsed_data = parse(&string_data_nan).unwrap();
     for (_, value) in new_parsed_data.iter().unwrap() {
-        assert_eq!(**value, NAN);
+        assert_eq!(*value, NAN);
     }
 }
 
