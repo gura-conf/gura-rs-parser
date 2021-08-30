@@ -1,4 +1,4 @@
-//! ![](https://github.com/gura-conf/gura/blob/master/logos/gura-200.png?raw=true)
+//! ![](https://raw.githubusercontent.com/gura-conf/gura/master/static/img/logos/gura-200.png)
 //!
 //! # Gura Rust
 //!
