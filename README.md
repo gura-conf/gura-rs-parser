@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/gura-conf/gura-rs-parser/actions/workflows/ci.yml/badge.svg)](https://github.com/gura-conf/gura-rs-parser/actions/workflows/ci.yml)
 
+**IMPORTANT:** if you need to use Gura in a more user-friendly way, you have at your disposal [Serde Gura][serde-gura] which allows you to perform Serialization/Deserialization with ease.
+
 This repository contains the implementation of a [Gura][gura] (compliant with version 1.0.0) format parser for Rust lang.
 
 **[Documentation](https://docs.rs/gura/) -**
@@ -85,5 +87,6 @@ To run all the tests: `cargo test`
 This repository is distributed under the terms of the MIT license.
 
 
+[serde-gura]: https://github.com/gura-conf/serde-gura
 [gura]: https://github.com/gura-conf/gura
 [discord-server]: https://discord.gg/Qs5AXPQpKd
