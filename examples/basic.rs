@@ -26,6 +26,11 @@ hosts: [
     // Access a specific field
     println!("Title -> {}", parsed["title"]);
 
+    // You can check if object contains a key
+    if parsed.contains_key("an_object") {
+        println!("\nGura object contains 'an_object' key!");
+    }
+
     // Iterate over structure
     println!("\nHosts:");
     if let GuraType::Array(hosts) = &parsed["hosts"] {

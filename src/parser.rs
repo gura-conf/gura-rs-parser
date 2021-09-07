@@ -24,9 +24,6 @@ const BASIC_NUMBERS_CHARS: &str = "0-9";
 const HEX_OCT_BIN: &str = "A-Fa-fxob";
 const INF_AND_NAN: &str = "in"; // The rest of the chars are defined in hex_oct_bin
 
-// IMPORTANT: '-' char must be last, otherwise it will be interpreted as a range
-// const ACCEPTABLE_NUMBER_CHARS: Option<String> = Some(BASIC_NUMBERS_CHARS + &HEX_OCT_BIN + &INF_AND_NAN + "Ee+._-");
-
 /// Acceptable chars for keys
 const KEY_ACCEPTABLE_CHARS: &str = "0-9A-Za-z_";
 
@@ -158,7 +155,7 @@ where
     fn index(&self, index: T) -> &GuraType {
         match *self {
             GuraType::Object(ref object) => &object[index.as_ref()],
-            _ => &GuraType::Null,
+            _ => panic!("Using index in an non object type. Check if the Gura object contains the key first"),
         }
     }
 }
@@ -304,6 +301,9 @@ impl PartialEq<GuraType> for String {
 }
 
 impl GuraType {
+    /// Gets an iterator over the references to the elements of an object.
+    /// 
+    /// Returns an error if the Gura type is not an object
     pub fn iter(&self) -> Result<indexmap::map::Iter<'_, String, GuraType>, &str> {
         match self {
             GuraType::Object(hash_map) => Ok(hash_map.iter()),
@@ -311,10 +311,23 @@ impl GuraType {
         }
     }
 
+    /// Gets an iterator over the elements of an object.
+    ///
+    /// Returns an error if the Gura type is not an object
     pub fn iter_mut(&mut self) -> Result<indexmap::map::IterMut<'_, String, GuraType>, &str> {
         match self {
             GuraType::Object(hash_map) => Ok(hash_map.iter_mut()),
             _ => Err("This struct is not an object"),
+        }
+    }
+
+    /// Checks if a specific key is defined in the Gura Object
+    ///
+    /// If the Gura type is not an object it returns `false`
+    pub fn contains_key(&self, key: &str) -> bool {
+        match self {
+            GuraType::Object(hash_map) => hash_map.contains_key(key),
+            _ => false,
         }
     }
 }

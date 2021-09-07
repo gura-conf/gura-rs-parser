@@ -8,7 +8,8 @@ struct TangoSinger {
 }
 
 fn main() {
-    // Until Serde-Gura implementation is finished you can make manual struct instantiation
+    // NOTE: Serde-Gura implementation is finished and it is the recommended way to use Gura in Rust.
+    // You can find it at https://github.com/gura-conf/serde-gura/
     let gura_string = r##"
 # This is a Gura document.
 
