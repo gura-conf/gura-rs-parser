@@ -302,7 +302,7 @@ impl PartialEq<GuraType> for String {
 
 impl GuraType {
     /// Gets an iterator over the references to the elements of an object.
-    /// 
+    ///
     /// Returns an error if the Gura type is not an object
     pub fn iter(&self) -> Result<indexmap::map::Iter<'_, String, GuraType>, &str> {
         match self {
@@ -522,12 +522,14 @@ fn basic_string(text: &mut Input) -> RuleResult {
                         }
                     };
                 } else {
-                    // Gets escaped char
-                    let escaped_char = CHARS_TO_ESCAPE
-                        .get(escape.as_str())
-                        .cloned()
-                        .unwrap_or_else(|| current_char.as_str());
-                    final_string.push_str(escaped_char);
+                    // Gets escaped char or interprets as literal
+                    let escaped_char: String = if CHARS_TO_ESCAPE.contains_key(escape.as_str()) {
+                        CHARS_TO_ESCAPE.get(escape.as_str()).unwrap().to_string()
+                    } else {
+                        current_char + &escape
+                    };
+
+                    final_string.push_str(&escaped_char);
                 }
             }
         } else {

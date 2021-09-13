@@ -104,3 +104,15 @@ fn test_multiline_literal_strings() {
         common::get_file_content_parsed(PARENT_FOLDER, "multiline_literal.ura").unwrap();
     assert_eq!(parsed_data, get_expected_multiline_literal());
 }
+
+#[test]
+/// Tests invalid escape sentences interpreted as literals
+fn test_invalid_escape_sentence() {
+    let parsed_data = parse(r##"foo: "\t\h\i\\i""##).unwrap();
+    assert_eq!(
+        parsed_data,
+        object! {
+            foo: "\t\\h\\i\\i"
+        }
+    );
+}
