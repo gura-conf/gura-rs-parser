@@ -16,7 +16,7 @@ Add the dependency to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-gura = "0.4.0"
+gura = "0.4.2"
 ```
 
 
