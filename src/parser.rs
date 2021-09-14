@@ -7,6 +7,7 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use std::{
+    borrow::Cow,
     cmp::Ordering,
     collections::{HashMap, HashSet},
     env,
@@ -523,10 +524,9 @@ fn basic_string(text: &mut Input) -> RuleResult {
                     };
                 } else {
                     // Gets escaped char or interprets as literal
-                    let escaped_char: String = if CHARS_TO_ESCAPE.contains_key(escape.as_str()) {
-                        CHARS_TO_ESCAPE.get(escape.as_str()).unwrap().to_string()
-                    } else {
-                        current_char + &escape
+                    let escaped_char = match CHARS_TO_ESCAPE.get(escape.as_str()) {
+                        Some(v) => Cow::Borrowed(*v),
+                        None => Cow::Owned(current_char + &escape),
                     };
 
                     final_string.push_str(&escaped_char);
