@@ -1,5 +1,4 @@
 use gura::errors::InvalidIndentationError;
-mod common;
 
 const PARENT_FOLDER: &str = "indentation";
 

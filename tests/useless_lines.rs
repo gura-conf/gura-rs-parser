@@ -1,5 +1,4 @@
 use gura::{object, parser::GuraType};
-mod common;
 
 fn get_expected() -> GuraType {
     object! {

@@ -1,5 +1,4 @@
 use gura::{object, parser::GuraType};
-mod common;
 
 fn get_expected() -> GuraType {
     object! {
@@ -78,7 +77,8 @@ fn test_normal() {
 /// Tests a bug that breaks arrays with a mandatory trailing comma. In this case the trailing comma is
 /// missing and it should parse correctly
 fn bug_trailing_comma() {
-    let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "bug_trailing_comma.ura").unwrap();
+    let parsed_data =
+        common::get_file_content_parsed(PARENT_FOLDER, "bug_trailing_comma.ura").unwrap();
     assert_eq!(parsed_data, get_expected_trailing_comma());
 }
 
