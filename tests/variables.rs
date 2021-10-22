@@ -4,6 +4,7 @@ use gura::{
     parser::{parse, GuraType},
 };
 use std::env;
+mod common;
 
 fn get_expected() -> GuraType {
     object! {

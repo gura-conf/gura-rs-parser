@@ -28,7 +28,7 @@ tango_singers: [
     // Parse: transforms a Gura string into a dictionary
     let parsed = parse(&gura_string).unwrap();
 
-    // Lets make an array of singers
+	// Lets make an array of singers
     if let GuraType::Array(tango_singers) = &parsed["tango_singers"] {
         let mut tango_singers_structs: Vec<TangoSinger> =
             Vec::with_capacity(tango_singers.capacity());

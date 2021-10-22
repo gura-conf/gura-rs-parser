@@ -1,8 +1,5 @@
-use gura::{
-    errors::{InvalidIndentationError, ParseError},
-    object, parse,
-    parser::GuraType,
-};
+use gura::{errors::{InvalidIndentationError, ParseError}, object, parse, parser::GuraType};
+mod common;
 
 fn get_expected() -> GuraType {
     object! {

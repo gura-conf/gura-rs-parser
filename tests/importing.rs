@@ -6,8 +6,9 @@ use gura::{
     object,
     parser::{parse, GuraType},
 };
-use std::io::Write;
 use tempfile::NamedTempFile;
+mod common;
+use std::io::Write;
 
 fn get_expected() -> GuraType {
     object! {

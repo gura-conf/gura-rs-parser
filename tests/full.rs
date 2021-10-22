@@ -4,6 +4,7 @@ use gura::{
     parser::{dump, parse, GuraType},
 };
 use std::f64::{INFINITY, NAN, NEG_INFINITY};
+mod common;
 
 fn get_expected() -> GuraType {
     object! {

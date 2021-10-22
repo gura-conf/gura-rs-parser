@@ -5,6 +5,7 @@ use gura::{
     object,
     parser::{parse, GuraType},
 };
+mod common;
 
 const ESCAPED_VALUE: &str = "$name is cool";
 
