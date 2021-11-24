@@ -1,5 +1,5 @@
 use gura::{
-    errors::ParseError,
+    errors::Error,
     object,
     parser::{dump, parse, GuraType},
 };
@@ -183,28 +183,19 @@ fn test_empty_2() {
 /// Tests invalid key
 fn test_invalid_key() {
     let parsed_data = parse(&"with.dot: 5");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests invalid key
 fn test_invalid_key_2() {
     let parsed_data = parse(&"\"with_quotes\": 5");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests invalid key
 fn test_invalid_key_3() {
     let parsed_data = parse(&"with-dashes: 5");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }

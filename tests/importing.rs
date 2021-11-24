@@ -1,8 +1,5 @@
 use gura::{
-    errors::{
-        DuplicatedImportError, DuplicatedKeyError, DuplicatedVariableError, FileNotFoundError,
-        ParseError,
-    },
+    errors::Error,
     object,
     parser::{parse, GuraType},
 };
@@ -44,30 +41,24 @@ fn test_with_variables() {
 /// Tests errors importing a non existing file
 fn test_not_found_error() {
     let parsed_data = parse(&"import \"invalid_file.ura\"");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<FileNotFoundError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::FileNotFoundError);
 }
 
 #[test]
 /// Tests errors when redefines a key
 fn test_duplicated_key_error() {
     let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "duplicated_key.ura");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<DuplicatedKeyError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::DuplicatedKeyError);
 }
 
 #[test]
 /// Tests errors when redefines a variable
 fn test_duplicated_variable_error() {
     let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "duplicated_variable.ura");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<DuplicatedVariableError>()
-        .is_some());
+    assert_eq!(
+        parsed_data.unwrap_err().kind,
+        Error::DuplicatedVariableError
+    );
 }
 
 #[test]
@@ -75,10 +66,7 @@ fn test_duplicated_variable_error() {
 fn test_duplicated_imports() {
     let parsed_data =
         common::get_file_content_parsed(PARENT_FOLDER, "duplicated_imports_simple.ura");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<DuplicatedImportError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::DuplicatedImportError);
 }
 
 #[test]
@@ -105,18 +93,12 @@ fn test_with_absolute_paths() {
 /// Tests errors invalid importing sentence (there are blanks before import)
 fn test_parse_error_1() {
     let parsed_data = parse(&"  import \"another_file.ura\"");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests errors invalid importing sentence (there are more than one whitespace between import and file name)
 fn test_parse_error_2() {
     let parsed_data = parse(&"import   \"another_file.ura\"");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }

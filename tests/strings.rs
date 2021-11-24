@@ -1,10 +1,9 @@
-use std::env;
-
 use gura::{
-    errors::VariableNotDefinedError,
+    errors::Error,
     object,
     parser::{parse, GuraType},
 };
+use std::env;
 mod common;
 
 const ESCAPED_VALUE: &str = "$name is cool";
@@ -84,10 +83,10 @@ fn test_multiline_basic_strings() {
 /// Tests errors in basic strings
 fn test_basic_strings_errors() {
     let parsed_data = parse(&"test: \"$false_var\"");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<VariableNotDefinedError>()
-        .is_some());
+    assert_eq!(
+        parsed_data.unwrap_err().kind,
+        Error::VariableNotDefinedError
+    );
 }
 
 #[test]

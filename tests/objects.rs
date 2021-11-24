@@ -1,4 +1,4 @@
-use gura::{errors::{InvalidIndentationError, ParseError}, object, parse, parser::GuraType};
+use gura::{errors::Error, object, parse, parser::GuraType};
 mod common;
 
 fn get_expected() -> GuraType {
@@ -67,28 +67,22 @@ fn test_with_comments() {
 /// Tests parsing error in invalid objects
 fn test_invalid() {
     let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "invalid.ura");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests parsing error in invalid objects
 fn test_invalid_2() {
     let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "invalid_2.ura");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<InvalidIndentationError>()
-        .is_some());
+    assert_eq!(
+        parsed_data.unwrap_err().kind,
+        Error::InvalidIndentationError
+    );
 }
 
 #[test]
 /// Tests parsing error in invalid objects
 fn test_invalid_3() {
     let parsed_data = common::get_file_content_parsed(PARENT_FOLDER, "invalid_3.ura");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }

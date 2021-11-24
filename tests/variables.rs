@@ -1,5 +1,5 @@
 use gura::{
-    errors::{DuplicatedVariableError, ParseError, VariableNotDefinedError},
+    errors::Error,
     object,
     parser::{parse, GuraType},
 };
@@ -32,20 +32,20 @@ fn test_normal() {
 /// Tests errors in variables definition
 fn test_with_error() {
     let parsed_data = parse(&"test: $false_var");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<VariableNotDefinedError>()
-        .is_some());
+    assert_eq!(
+        parsed_data.unwrap_err().kind,
+        Error::VariableNotDefinedError
+    );
 }
 
 #[test]
 /// Tests errors in variables definition
 fn test_with_duplicated() {
     let parsed_data = parse(&"$a_var: 14\n$a_var: 15");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<DuplicatedVariableError>()
-        .is_some());
+    assert_eq!(
+        parsed_data.unwrap_err().kind,
+        Error::DuplicatedVariableError
+    );
 }
 
 #[test]
@@ -64,40 +64,28 @@ fn test_env_var() {
 /// Tests invalid variable value type
 fn test_invalid_variable() {
     let parsed_data = parse(&"$invalid: true");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests invalid variable value type
 fn test_invalid_variable_2() {
     let parsed_data = parse(&"$invalid: false");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests invalid variable value type
 fn test_invalid_variable_3() {
     let parsed_data = parse(&"$invalid: null");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests invalid variable value type
 fn test_invalid_variable_4() {
     let parsed_data = parse(&"$invalid: [ 1, 2, 3]");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
@@ -105,8 +93,5 @@ fn test_invalid_variable_4() {
 fn test_invalid_variable_5() {
     let parsed_data =
         common::get_file_content_parsed(PARENT_FOLDER, "invalid_variable_with_object.ura");
-    assert!(parsed_data
-        .unwrap_err()
-        .downcast_ref::<ParseError>()
-        .is_some());
+    assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
