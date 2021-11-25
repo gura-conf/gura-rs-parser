@@ -1,0 +1,1 @@
+foo: $bar  # <- $bar is not defined

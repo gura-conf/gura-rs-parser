@@ -1,0 +1,3 @@
+tango_singers: [
+    fest: "Some string", H   # <---- This "H" is a parsing error
+]

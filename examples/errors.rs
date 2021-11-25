@@ -1,4 +1,3 @@
-// Basic Gura parser usage example
 use gura::{errors::Error, parse};
 
 fn main() {
@@ -9,7 +8,7 @@ title: "Gura Example"
 some_invalid: $non_existent_var 
 "##;
 
-    // Parse: transforms a Gura string into a dictionary
+    // Checks parsing result
     match parse(&gura_string) {
         Ok(parsed) => {
             println!("Title -> {}", parsed["title"]);

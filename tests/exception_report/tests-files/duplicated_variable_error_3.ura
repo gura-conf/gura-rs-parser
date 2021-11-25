@@ -1,0 +1,6 @@
+
+$bar: "test"
+$foo: "bar"
+
+# COMMENT
+$foo: 44.89

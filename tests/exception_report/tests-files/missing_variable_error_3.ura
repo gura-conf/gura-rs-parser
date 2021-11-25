@@ -1,0 +1,7 @@
+
+correct: true
+
+
+# COMMENT
+
+foo: $bar  # <- $bar is not defined

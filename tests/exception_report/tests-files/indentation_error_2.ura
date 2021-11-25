@@ -1,0 +1,3 @@
+baz:
+    bar: "foo"
+     foo: "foz"  # <- This line has 5 spaces (not divisible by 4!)

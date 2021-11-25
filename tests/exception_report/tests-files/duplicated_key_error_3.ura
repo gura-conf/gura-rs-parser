@@ -1,0 +1,4 @@
+baz: true
+object:
+    foo: "bar"
+    foo: 44.89
