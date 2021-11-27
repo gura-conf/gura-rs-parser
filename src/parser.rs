@@ -985,7 +985,7 @@ fn new_line(text: &mut Input) -> RuleResult {
     let new_line_chars = Some(String::from(NEW_LINE_CHARS));
     char(text, &new_line_chars)?;
 
-    // If this line is reached then new line matched
+    // If this line is reached then new line matched as no exception was raised
     text.line += 1;
 
     Ok(GuraType::WsOrNewLine)
