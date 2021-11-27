@@ -736,16 +736,6 @@ fn split_char_ranges(text: &mut Input, chars: &str) -> Result<Vec<Vec<String>>, 
     Ok(result)
 }
 
-/// Returns max(current_position, 0)
-// fn get_pos_isize(text: &mut Input) -> isize {
-//     text.pos.max(0)
-// }
-
-// /// Returns max(current_position, 0) as usize
-// fn get_pos_usize(text: &mut Input) -> usize {
-//     get_pos_isize(text) as usize
-// }
-
 /// Matches a list of specific chars and returns the first that matched. If any matched, it will raise a `ParseError`.
 ///
 /// `chars` argument can be a range like "a-zA-Z" and they will be properly handled.
