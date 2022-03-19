@@ -1,6 +1,7 @@
 use gura::{parse, GuraType};
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct TangoSinger {
     name: String,
     surname: String,
