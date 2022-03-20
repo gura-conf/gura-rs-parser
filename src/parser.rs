@@ -364,7 +364,7 @@ impl Input {
     ///
     /// * text - Text to set as the internal text to be parsed.
     fn restart_params(&mut self, text: &str) {
-        let graph = get_graphemes_cluster(&text.to_string());
+        let graph = get_graphemes_cluster(text);
         self.text = graph;
         self.pos = -1;
         self.line = 1;
@@ -1105,7 +1105,7 @@ fn get_variable_value(text: &mut Input, key: &str, position: isize, line: usize)
             VariableValueType::Float(number_value) => Ok(GuraType::Float(*number_value)),
             VariableValueType::String(str_value) => Ok(GuraType::String(str_value.clone())),
         },
-        _ => match env::var(key.to_string()) {
+        _ => match env::var(key) {
             Ok(value) => Ok(GuraType::String(value)),
             Err(_) => Err(GuraError {
                 pos: position,
@@ -1306,17 +1306,16 @@ fn number(text: &mut Input) -> RuleResult {
     }
 
     // Replaces underscores as Rust does not support them in the same way Gura does
-    let result = chars.trim_end().replace("_", "");
+    let result = chars.trim_end().replace('_', "");
 
     // Checks hexadecimal, octal and binary format
     let prefix = result.get(0..2).unwrap_or("");
     if vec!["0x", "0o", "0b"].contains(&prefix) {
-        let base: u32;
         let without_prefix = result[2..].to_string();
-        match prefix {
-            "0x" => base = 16,
-            "0o" => base = 8,
-            _ => base = 2,
+        let base = match prefix {
+            "0x" => 16,
+            "0o" => 8,
+            _ => 2,
         };
 
         let int_value = isize::from_str_radix(&without_prefix, base).unwrap();
@@ -1696,7 +1695,7 @@ fn dump_content(content: &GuraType) -> String {
 
             if !should_multiline {
                 let stringify_values: Vec<String> =
-                    array.iter().map(|elem| dump_content(elem)).collect();
+                    array.iter().map(dump_content).collect();
                 let joined = stringify_values.iter().cloned().join(", ");
                 return format!("[{}]", joined);
             }
