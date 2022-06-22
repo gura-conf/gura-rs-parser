@@ -35,7 +35,7 @@ fn main() {
     ]
 ]"##;
 
-    let parsed = parse(&str).unwrap();
+    let parsed = parse(str).unwrap();
     let dumped = dump(&parsed);
     assert_eq!(str.trim(), dumped.trim());
 }

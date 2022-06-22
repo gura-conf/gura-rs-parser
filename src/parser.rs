@@ -9,7 +9,8 @@ use std::{
     collections::{HashMap, HashSet},
     env,
     f64::{INFINITY, NAN, NEG_INFINITY},
-    fmt, fs,
+    fmt::{self, Write as _},
+    fs,
     ops::Index,
     path::Path,
     usize,
@@ -782,7 +783,7 @@ fn char(text: &mut Input, chars: &Option<String>) -> Result<String, GuraError> {
                 }
             }
 
-            return Err(GuraError {
+            Err(GuraError {
                 pos: next_char_pos,
                 line: text.line,
                 msg: format!(
@@ -790,7 +791,7 @@ fn char(text: &mut Input, chars: &Option<String>) -> Result<String, GuraError> {
                     chars_value, text.text[next_char_pos_usize]
                 ),
                 kind: Error::ParseError,
-            });
+            })
         }
     }
 }
@@ -1657,25 +1658,25 @@ fn dump_content(content: &GuraType) -> String {
 
             let mut result = String::new();
             for (key, gura_value) in values.iter() {
-                result.push_str(&format!("{}:", key));
+                let _ = write!(result, "{}:", key);
 
                 // If the value is an object, splits the stringified value by
                 // newline and indents each line before adding it to the result
-                if let GuraType::Object(obj) = &*gura_value {
+                if let GuraType::Object(obj) = gura_value {
                     let dumped = dump_content(gura_value);
                     let stringified_value = dumped.trim_end();
                     if !obj.is_empty() {
                         result.push('\n');
 
                         for line in stringified_value.split('\n') {
-                            result.push_str(&format!("{}{}\n", INDENT, line));
+                            let _ = writeln!(result, "{}{}", INDENT, line);
                         }
                     } else {
                         // Prevents indentation on empty objects
-                        result.push_str(&format!(" {}\n", stringified_value));
+                        let _ = writeln!(result, " {}", stringified_value);
                     }
                 } else {
-                    result.push_str(&format!(" {}\n", dump_content(gura_value)));
+                    let _ = writeln!(result, " {}", dump_content(gura_value));
                 }
             }
 
@@ -1685,7 +1686,7 @@ fn dump_content(content: &GuraType) -> String {
             // Lists are a special case: if it has an object, and indented representation must be returned. In case
             // of primitive values or nested arrays, a plain representation is more appropriated
             let should_multiline = array.iter().any(|e| {
-                if let GuraType::Object(obj) = &*e {
+                if let GuraType::Object(obj) = e {
                     !obj.is_empty()
                 } else {
                     false
@@ -1717,7 +1718,7 @@ fn dump_content(content: &GuraType) -> String {
                     result += &splitted.iter().cloned().join("\n");
                 } else {
                     // Otherwise indent the value and add to result
-                    result.push_str(&format!("{}{}", INDENT, stringified_value));
+                    let _ = write!(result, "{}{}", INDENT, stringified_value);
                 }
 
                 // Add a comma if this entry is not the final entry in the list

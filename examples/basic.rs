@@ -17,7 +17,7 @@ hosts: [
 ]"##;
 
     // Parse: transforms a Gura string into a dictionary
-    let parsed = parse(&gura_string).unwrap();
+    let parsed = parse(gura_string).unwrap();
 
     // Debug and Display
     // println!("{:#?}", parsed);

@@ -149,7 +149,7 @@ fn test_dumps_result() {
     ]
 ]"##;
 
-    let parsed = parse(&str).unwrap();
+    let parsed = parse(str).unwrap();
     let dumped = dump(&parsed);
     assert_eq!(str, dumped);
 }
@@ -168,34 +168,34 @@ fn test_dumps_nan() {
 #[test]
 /// Tests empty Gura documents
 fn test_empty() {
-    let parsed_data = parse(&"").unwrap();
+    let parsed_data = parse("").unwrap();
     assert_eq!(parsed_data, object! {});
 }
 
 #[test]
 /// Tests empty Gura documents, even when some data is defined
 fn test_empty_2() {
-    let parsed_data = parse(&"$unused_var: 5").unwrap();
+    let parsed_data = parse("$unused_var: 5").unwrap();
     assert_eq!(parsed_data, object! {});
 }
 
 #[test]
 /// Tests invalid key
 fn test_invalid_key() {
-    let parsed_data = parse(&"with.dot: 5");
+    let parsed_data = parse("with.dot: 5");
     assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests invalid key
 fn test_invalid_key_2() {
-    let parsed_data = parse(&"\"with_quotes\": 5");
+    let parsed_data = parse("\"with_quotes\": 5");
     assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests invalid key
 fn test_invalid_key_3() {
-    let parsed_data = parse(&"with-dashes: 5");
+    let parsed_data = parse("with-dashes: 5");
     assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }

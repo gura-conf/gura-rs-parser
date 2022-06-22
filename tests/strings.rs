@@ -82,7 +82,7 @@ fn test_multiline_basic_strings() {
 #[test]
 /// Tests errors in basic strings
 fn test_basic_strings_errors() {
-    let parsed_data = parse(&"test: \"$false_var\"");
+    let parsed_data = parse("test: \"$false_var\"");
     assert_eq!(
         parsed_data.unwrap_err().kind,
         Error::VariableNotDefinedError
