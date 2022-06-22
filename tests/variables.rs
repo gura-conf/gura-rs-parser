@@ -31,7 +31,7 @@ fn test_normal() {
 #[test]
 /// Tests errors in variables definition
 fn test_with_error() {
-    let parsed_data = parse(&"test: $false_var");
+    let parsed_data = parse("test: $false_var");
     assert_eq!(
         parsed_data.unwrap_err().kind,
         Error::VariableNotDefinedError
@@ -41,7 +41,7 @@ fn test_with_error() {
 #[test]
 /// Tests errors in variables definition
 fn test_with_duplicated() {
-    let parsed_data = parse(&"$a_var: 14\n$a_var: 15");
+    let parsed_data = parse("$a_var: 14\n$a_var: 15");
     assert_eq!(
         parsed_data.unwrap_err().kind,
         Error::DuplicatedVariableError
@@ -63,28 +63,28 @@ fn test_env_var() {
 #[test]
 /// Tests invalid variable value type
 fn test_invalid_variable() {
-    let parsed_data = parse(&"$invalid: true");
+    let parsed_data = parse("$invalid: true");
     assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests invalid variable value type
 fn test_invalid_variable_2() {
-    let parsed_data = parse(&"$invalid: false");
+    let parsed_data = parse("$invalid: false");
     assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests invalid variable value type
 fn test_invalid_variable_3() {
-    let parsed_data = parse(&"$invalid: null");
+    let parsed_data = parse("$invalid: null");
     assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests invalid variable value type
 fn test_invalid_variable_4() {
-    let parsed_data = parse(&"$invalid: [ 1, 2, 3]");
+    let parsed_data = parse("$invalid: [ 1, 2, 3]");
     assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 

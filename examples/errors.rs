@@ -9,7 +9,7 @@ some_invalid: $non_existent_var
 "##;
 
     // Checks parsing result
-    match parse(&gura_string) {
+    match parse(gura_string) {
         Ok(parsed) => {
             println!("Title -> {}", parsed["title"]);
         }

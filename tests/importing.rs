@@ -40,7 +40,7 @@ fn test_with_variables() {
 #[test]
 /// Tests errors importing a non existing file
 fn test_not_found_error() {
-    let parsed_data = parse(&"import \"invalid_file.ura\"");
+    let parsed_data = parse("import \"invalid_file.ura\"");
     assert_eq!(parsed_data.unwrap_err().kind, Error::FileNotFoundError);
 }
 
@@ -92,13 +92,13 @@ fn test_with_absolute_paths() {
 #[test]
 /// Tests errors invalid importing sentence (there are blanks before import)
 fn test_parse_error_1() {
-    let parsed_data = parse(&"  import \"another_file.ura\"");
+    let parsed_data = parse("  import \"another_file.ura\"");
     assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }
 
 #[test]
 /// Tests errors invalid importing sentence (there are more than one whitespace between import and file name)
 fn test_parse_error_2() {
-    let parsed_data = parse(&"import   \"another_file.ura\"");
+    let parsed_data = parse("import   \"another_file.ura\"");
     assert_eq!(parsed_data.unwrap_err().kind, Error::ParseError);
 }

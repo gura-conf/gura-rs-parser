@@ -1,7 +1,7 @@
 use std::fmt;
 
 /// All Gura error variants
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     /// Raises when Gura syntax is invalid
     ParseError,
@@ -20,7 +20,7 @@ pub enum Error {
 }
 
 /// A Gura error with position, line and custom message
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct GuraError {
     pub pos: isize,
     pub line: usize,
