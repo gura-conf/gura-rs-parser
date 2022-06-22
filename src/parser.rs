@@ -619,19 +619,18 @@ fn compute_imports(text: &mut Input, parent_dir_path: Option<String>) -> Result<
                 });
             }
 
-            // Checks if file exists
-            let file_exists = fs::metadata(&file_to_import).is_ok();
-            if !file_exists {
-                return Err(GuraError {
-                    pos: 0,
-                    line: 0,
-                    msg: format!("The file \"{}\" does not exist", file_to_import),
-                    kind: Error::FileNotFoundError,
-                });
-            }
-
             // Gets content considering imports
-            let content = fs::read_to_string(&file_to_import).unwrap();
+            let content = match fs::read_to_string(&file_to_import) {
+                Ok(content) => content,
+                Err(_) => {
+                    return Err(GuraError {
+                        pos: 0,
+                        line: 0,
+                        msg: format!("The file \"{}\" does not exist", file_to_import),
+                        kind: Error::FileNotFoundError,
+                    });
+                }
+            };
             let parent_dir_path = Path::new(&file_to_import).parent().unwrap();
             let mut empty_input = Input::new();
             let content_with_import = get_text_with_imports(
@@ -1694,8 +1693,7 @@ fn dump_content(content: &GuraType) -> String {
             });
 
             if !should_multiline {
-                let stringify_values: Vec<String> =
-                    array.iter().map(dump_content).collect();
+                let stringify_values: Vec<String> = array.iter().map(dump_content).collect();
                 let joined = stringify_values.iter().cloned().join(", ");
                 return format!("[{}]", joined);
             }
