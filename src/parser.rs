@@ -1489,7 +1489,6 @@ fn pair(text: &mut Input) -> RuleResult {
     if let GuraType::Indentation(current_indentation_level) =
         matches(text, vec![Box::new(ws_with_indentation)])?
     {
-        println!("current_indentation_level: {}", current_indentation_level);
         let matched_key = matches(text, vec![Box::new(key)])?;
 
         if let GuraType::String(key_value) = matched_key {
@@ -1497,7 +1496,6 @@ fn pair(text: &mut Input) -> RuleResult {
 
             // Check indentation
             let last_indentation_block = get_last_indentation_level(text);
-            println!("last_indentation_block: {:?}", last_indentation_block);
 
             // Check if indentation is divisible by 4
             if current_indentation_level % 4 != 0 {

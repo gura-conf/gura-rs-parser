@@ -7,7 +7,7 @@ keywords = ["parse", "dump", "serialize", "deserialize", "stringify"]
 license = "MIT"
 name = "gura"
 repository = "https://github.com/gura-conf/gura-rs-parser"
-version = "0.5.2"
+version = "0.5.3"
 
 [dependencies]
 float-pretty-print = "0.1.0"
