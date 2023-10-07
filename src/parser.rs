@@ -1310,7 +1310,7 @@ fn number(text: &mut Input) -> RuleResult {
 
     // Checks hexadecimal, octal and binary format
     let prefix = result.get(0..2).unwrap_or("");
-    if vec!["0x", "0o", "0b"].contains(&prefix) {
+    if ["0x", "0o", "0b"].contains(&prefix) {
         let without_prefix = result[2..].to_string();
         let base = match prefix {
             "0x" => 16,
@@ -1489,6 +1489,7 @@ fn pair(text: &mut Input) -> RuleResult {
     if let GuraType::Indentation(current_indentation_level) =
         matches(text, vec![Box::new(ws_with_indentation)])?
     {
+        println!("current_indentation_level: {}", current_indentation_level);
         let matched_key = matches(text, vec![Box::new(key)])?;
 
         if let GuraType::String(key_value) = matched_key {
@@ -1496,6 +1497,7 @@ fn pair(text: &mut Input) -> RuleResult {
 
             // Check indentation
             let last_indentation_block = get_last_indentation_level(text);
+            println!("last_indentation_block: {:?}", last_indentation_block);
 
             // Check if indentation is divisible by 4
             if current_indentation_level % 4 != 0 {
@@ -1524,6 +1526,16 @@ fn pair(text: &mut Input) -> RuleResult {
                     Ordering::Equal => (),
                 }
             } else {
+                // If it's the first pair, the indentation level is should be 0
+                if current_indentation_level > 0 {
+                    return Err(GuraError {
+                        pos: pos_before_pair,
+                        line: text.line,
+                        msg: String::from("First pair must have indentation level 0"),
+                        kind: Error::InvalidIndentationError,
+                    });
+                }
+
                 text.indentation_levels.push(current_indentation_level);
             }
 

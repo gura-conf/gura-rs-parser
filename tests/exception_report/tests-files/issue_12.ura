@@ -1,0 +1,6 @@
+
+            hosts: [
+                "alpha",
+                "omega"
+            ]
+            

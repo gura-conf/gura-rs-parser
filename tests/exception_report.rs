@@ -226,3 +226,9 @@ fn test_duplicated_import_1() {
 fn test_duplicated_import_2() {
     test_fail("importing_error_2.ura", Error::DuplicatedImportError, 86, 5);
 }
+
+/// Tests issue https://github.com/gura-conf/gura/issues/12
+#[test]
+fn test_array_issue_12() {
+    test_fail("issue_12.ura", Error::InvalidIndentationError, 0, 2);
+}
