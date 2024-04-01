@@ -18,14 +18,17 @@ fn get_expected_basic() -> GuraType {
     }
 }
 
+// Multiline char depends on platform (Windows handles \r\n, Unix \n, etc.)
 const MULTILINE_VALUE: &str = "Roses are red\nViolets are blue";
+const MULTILINE_VALUE_LINUX: &str = "Roses are red\nViolets are blue";
+const MULTILINE_VALUE_WINDOWS: &str = "Roses are red\r\nViolets are blue";
 const MULTILINE_VALUE_WITHOUT_NEWLINE: &str = "The quick brown fox jumps over the lazy dog.";
 fn get_expected_multiline_basic() -> GuraType {
     object! {
-        str: MULTILINE_VALUE,
-        str_2: MULTILINE_VALUE,
+        str: if cfg!(windows) { MULTILINE_VALUE_WINDOWS } else { MULTILINE_VALUE_LINUX },
+        str_2: if cfg!(windows) { MULTILINE_VALUE_WINDOWS } else { MULTILINE_VALUE_LINUX },
         str_3: MULTILINE_VALUE,
-        with_var: MULTILINE_VALUE,
+        with_var: if cfg!(windows) { MULTILINE_VALUE_WINDOWS } else { MULTILINE_VALUE_LINUX },
         with_env_var: MULTILINE_VALUE,
         str_with_backslash: MULTILINE_VALUE_WITHOUT_NEWLINE,
         str_with_backslash_2: MULTILINE_VALUE_WITHOUT_NEWLINE,
@@ -47,9 +50,12 @@ fn get_expected_literal() -> GuraType {
     }
 }
 
+const LINES_LINUX: &str = "The first newline is\ntrimmed in raw strings.\n   All other whitespace\n   is preserved.\n";
+const LINES_WINDOWS: &str = "The first newline is\r\ntrimmed in raw strings.\r\n   All other whitespace\r\n   is preserved.\r\n";
+
 fn get_expected_multiline_literal() -> GuraType {
     object! {
-        lines: "The first newline is\ntrimmed in raw strings.\n   All other whitespace\n   is preserved.\n",
+        lines: if cfg!(windows) { LINES_WINDOWS } else { LINES_LINUX },
         regex2: "I [dw]on't need \\d{2} apples",
         with_var: "$no_parsed variable!",
         escaped_var: ESCAPED_VALUE

@@ -111,3 +111,9 @@ fn test_in_the_middle_object_complex() {
         common::get_file_content_parsed(PARENT_FOLDER, "in_the_middle_object_complex.ura").unwrap();
     assert_eq!(parsed_data, get_expected_object_complex());
 }
+
+#[test]
+/// Tests issue https://github.com/gura-conf/gura-rs-parser/issues/13
+fn test_issue_13() {
+    check_test_file("issue_13.ura");
+}

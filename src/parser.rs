@@ -25,8 +25,12 @@ const INF_AND_NAN: &str = "in"; // The rest of the chars are defined in hex_oct_
 /// Acceptable chars for keys
 const KEY_ACCEPTABLE_CHARS: &str = "0-9A-Za-z_";
 
-/// New line chars
-const NEW_LINE_CHARS: &str = "\n\x0c\x0b\x08";
+/// New line chars (U+000A, U+000C, U+000B, U+0008). Used in new_line() method
+/// * \n - U+000A
+/// * \f - U+000C
+/// * \v - U+000B
+/// * \r - U+0008
+const NEW_LINE_CHARS: &str = "\n\r\n\x0c\x0b\x08";
 
 lazy_static! {
     /// Special characters that need escaped when parsing Gura texts
@@ -36,6 +40,7 @@ lazy_static! {
         m.insert("f", "\x0c");
         m.insert("n", "\n");
         m.insert("r", "\r");
+        m.insert("rn", "\r\n");
         m.insert("t", "\t");
         m.insert("\"", "\"");
         m.insert("\\", "\\");
@@ -50,6 +55,7 @@ lazy_static! {
         m.insert("\x0c", "\\f");
         m.insert("\n", "\\n");
         m.insert("\r", "\\r");
+        m.insert("\r\n", "\\r\\n");
         m.insert("\t", "\\t");
         m.insert("\"", "\\\"");
         m.insert("\\", "\\\\");
@@ -434,7 +440,7 @@ fn useless_line(text: &mut Input) -> RuleResult {
     maybe_match(text, vec![Box::new(new_line)])?;
     let is_new_line = (text.line - initial_line) == 1;
 
-    if comment.is_none() && !is_new_line {
+    if comment.is_none() && !is_new_line && !is_end_of_file(text) {
         return Err(GuraError {
             pos: text.pos + 1,
             line: text.line,
@@ -475,9 +481,9 @@ fn basic_string(text: &mut Input) -> RuleResult {
 
     let is_multiline = quote == "\"\"\"";
 
-    // NOTE: a newline immediately following the opening delimiter will be trimmed.All other whitespace and
+    // NOTE: a newline immediately following the opening delimiter will be trimmed. All other whitespace and
     // newline characters remain intact.
-    if is_multiline && maybe_char(text, &Some(String::from("\n")))?.is_some() {
+    if is_multiline && maybe_char(text, &Some(String::from(NEW_LINE_CHARS)))?.is_some() {
         text.line += 1;
     }
 
@@ -494,7 +500,7 @@ fn basic_string(text: &mut Input) -> RuleResult {
             let escape = char(text, &None)?;
 
             // Checks backslash followed by a newline to trim all whitespaces
-            if is_multiline && escape == "\n" {
+            if is_multiline && (escape == "\n" || escape == "\r\n") {
                 eat_ws_and_new_lines(text)
             } else {
                 // Supports Unicode of 16 and 32 bits representation
@@ -683,7 +689,7 @@ fn variable_value(text: &mut Input) -> RuleResult {
 /// * ParseError - If EOL has not been reached.
 fn assert_end(text: &mut Input) -> Result<(), GuraError> {
     if text.pos < text.len {
-        let error_pos = text.pos + 1;
+        let error_pos = if !is_end_of_file(text) { text.pos + 1} else { text.pos };
         Err(GuraError {
             pos: error_pos,
             line: text.line,
@@ -821,7 +827,7 @@ fn keyword(text: &mut Input, keywords: &[&str]) -> Result<String, GuraError> {
         }
     }
 
-    let error_pos = text.pos + 1;
+    let error_pos = if !is_end_of_file(text) { text.pos + 1} else { text.pos };
     Err(GuraError {
         pos: error_pos,
         line: text.line,
@@ -998,7 +1004,7 @@ fn comment(text: &mut Input) -> RuleResult {
         let pos_usize = (text.pos + 1) as usize;
         let char = &text.text[pos_usize];
         text.pos += 1;
-        if String::from("\x0c\x0b\r\n").contains(char) {
+        if String::from(NEW_LINE_CHARS).contains(char) {
             text.line += 1;
             break;
         }
@@ -1220,6 +1226,12 @@ fn variable(text: &mut Input) -> RuleResult {
     }
 }
 
+/// Checks if it's the last position of the text.
+/// This prevents issues when reports the error position.
+fn is_end_of_file(text: &mut Input) -> bool {
+    text.pos == text.len
+}
+
 /// Matches with a key.A key is an unquoted string followed by a colon (:).
 ///
 /// # Errors
@@ -1233,7 +1245,7 @@ fn key(text: &mut Input) -> RuleResult {
         keyword(text, &[":"])?;
         matched_key
     } else {
-        let error_pos = text.pos + 1;
+        let error_pos = if !is_end_of_file(text) { text.pos + 1} else { text.pos };
         Err(GuraError {
             pos: error_pos,
             line: text.line,
@@ -1411,7 +1423,7 @@ fn literal_string(text: &mut Input) -> RuleResult {
 
     // NOTE: a newline immediately following the opening delimiter will be trimmed.All other whitespace and
     // newline characters remain intact.
-    if is_multiline && maybe_char(text, &Some(String::from("\n")))?.is_some() {
+    if is_multiline && maybe_char(text, &Some(String::from(NEW_LINE_CHARS)))?.is_some() {
         text.line += 1;
     }
 
