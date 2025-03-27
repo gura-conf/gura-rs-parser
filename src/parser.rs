@@ -8,12 +8,10 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     env,
-    f64::{INFINITY, NAN, NEG_INFINITY},
     fmt::{self, Write as _},
     fs,
     ops::Index,
     path::Path,
-    usize,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -1345,11 +1343,11 @@ fn number(text: &mut Input) -> RuleResult {
 
     match last_three_chars {
         "inf" => Ok(GuraType::Float(if result.starts_with('-') {
-            NEG_INFINITY
+            f64::NEG_INFINITY
         } else {
-            INFINITY
+            f64::INFINITY
         })),
-        "nan" => Ok(GuraType::Float(NAN)),
+        "nan" => Ok(GuraType::Float(f64::NAN)),
         _ => {
             // It's a normal number
             if number_type == NumberType::Integer {
